@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --accent: #4f8ef7;
+    --accent2: #f7c94f;
+    --green: #3ddc97;
+    --red: #ff6b6b;
+    --text: #e8eaf6;
+    --text-dim: #8892b0;
+    --text-muted: #4a5568;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #7b5ea7);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+  .logo-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .badge.live { border-color: var(--green); color: var(--green); }
+  .badge.live::before { content: '●  '; font-size: 8px; }
+
+  /* LAYOUT */
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 2rem;
+    width: fit-content;
+  }
+  .tab {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 500;
+  }
+  .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* FORM */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.half { grid-column: span 2; }
+
+  label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  label .required { color: var(--red); margin-left: 3px; }
+
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,142,247,0.1);
+  }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* 거리 입력 특별 스타일 */
+  .distance-section {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-top: 0.5rem;
+  }
+  .distance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    align-items: end;
+  }
+  .distance-result {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .method-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+  .method-badge.realtime { background: rgba(61,220,151,0.15); color: var(--green); border: 1px solid var(--green); }
+  .method-badge.probe { background: rgba(247,201,79,0.15); color: var(--accent2); border: 1px solid var(--accent2); }
+  .method-badge.empty { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+  /* CALCULATION RESULT */
+  .calc-result {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1d27 100%);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .calc-title {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+  }
+  .calc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .calc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .calc-item.highlight {
+    border-color: var(--accent);
+    background: rgba(79,142,247,0.05);
+  }
+  .calc-item.total {
+    border-color: var(--green);
+    background: rgba(61,220,151,0.05);
+    grid-column: 1 / -1;
+  }
+  .calc-label { font-size: 12px; color: var(--text-dim); }
+  .calc-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .calc-value.accent { color: var(--accent); }
+  .calc-value.green { color: var(--green); font-size: 16px; }
+
+  /* BUTTONS */
+  .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; flex-wrap: wrap; }
+  .btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: #3d7ef5; transform: translateY(-1px); }
+  .btn-success {
+    background: var(--green);
+    color: #0f1117;
+    font-weight: 700;
+  }
+  .btn-success:hover { background: #2fc97f; transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+  }
+  .btn-danger:hover { background: rgba(255,107,107,0.1); }
+
+  /* LIST */
+  .project-list { display: flex; flex-direction: column; gap: 0.8rem; }
+  .project-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    display: grid;
+    grid-template-columns: 40px 1fr auto auto;
+    align-items: center;
+    gap: 1rem;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .project-item:hover { border-color: var(--accent); }
+  .project-num {
+    width: 36px; height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .project-info { min-width: 0; }
+  .project-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .project-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .project-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--green);
+    white-space: nowrap;
+  }
+  .project-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.delete:hover { border-color: var(--red); color: var(--red); }
+
+  /* SUMMARY */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+  }
+  .summary-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .summary-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .summary-value.green { color: var(--green); }
+  .summary-value.accent { color: var(--accent); }
+  .summary-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--green);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    font-size: 14px;
+    color: var(--green);
+    z-index: 1000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 1rem 0;
+  }
+
+  /* RATIO TABLE */
+  .ratio-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ratio-table th {
+    background: var(--surface2);
+    padding: 8px 12px;
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ratio-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  .ratio-table tr:hover td { background: rgba(79,142,247,0.03); }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .text-right { text-align: right; }
+  .text-accent { color: var(--accent); }
+  .text-green { color: var(--green); }
+  .text-dim { color: var(--text-dim); }
+
+  @media (max-width: 768px) {
+    .container { padding: 1rem; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .calc-grid { grid-template-columns: 1fr; }
+    .distance-grid { grid-template-columns: 1fr; }
+    .project-item { grid-template-columns: 36px 1fr; }
+    .project-amount, .project-actions { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗺️</div>
+    <div>
+      <div class="logo-text">지하시설물 정산 시스템</div>
+      <div class="logo-sub">통신관로 조사 및 측량 · SK TNS 수도권지사</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span class="badge live">실시간 연동</span>
+    <span class="badge" id="projectCount">사업 0건</span>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('input')">📝 사업 입력</button>
+    <button class="tab" onclick="switchTab('list')">📋 사업 목록</button>
+    <button class="tab" onclick="switchTab('summary')">📊 정산 현황</button>
+  </div>
+
+  <!-- ==================== TAB 1: 사업 입력 ==================== -->
+  <div class="tab-content active" id="tab-input">
+
+    <div class="card">
+      <div class="card-title">🏗️ 사업 기본 정보</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>구분 <span class="required">*</span></label>
+          <select id="gubun">
+            <option value="">선택</option>
+            <option value="지자체">지자체</option>
+            <option value="SKT">SKT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>지역 <span class="required">*</span></label>
+          <input type="text" id="region" placeholder="예) 인천시, 광명시">
+        </div>
+        <div class="form-group">
+          <label>공공측량명칭 <span class="required">*</span></label>
+          <input type="text" id="surveyName" placeholder="예) 26년 SK 지하관로 측량(수도권지사)">
+        </div>
+        <div class="form-group">
+          <label>공사코드 <span class="required">*</span></label>
+          <input type="text" id="workCode" placeholder="예) T26020256102828">
+        </div>
+        <div class="form-group full">
+          <label>공사명 <span class="required">*</span></label>
+          <textarea id="workName" placeholder="공사 전체 명칭을 입력하세요"></textarea>
+        </div>
+        <div class="form-group">
+          <label>사업구분(Tango)</label>
+          <select id="tangoType">
+            <option value="[E-4. 지장이설] 원인자 공사">[E-4. 지장이설] 원인자 공사</option>
+            <option value="[E-1. 신설] 신설공사">[E-1. 신설] 신설공사</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>비고</label>
+          <input type="text" id="remark" placeholder="예) 10월 일부 정산">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📏 측량 거리 입력</div>
+
+      <div class="distance-section">
+        <div class="distance-grid">
+          <div class="form-group">
+            <label>노출측량 거리 (km)</label>
+            <input type="number" id="露出距離" placeholder="0.000" step="0.001" min="0" oninput="calcDistance()">
+          </div>
+          <div class="form-group">
+            <label>탐사측량 거리 (km)</label>
+            <input type="number" id="탐사距離" placeholder="0.000" step="0.001" min="0" oninput="calcDistance()">
+          </div>
+          <div class="form-group">
+            <label>측량거리 합계 (km)</label>
+            <div class="distance-result" id="totalDist">0.000 km</div>
+            <div id="methodBadge" class="method-badge empty">미입력</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div style="font-size:12px; color: var(--text-dim); line-height: 1.8;">
+          <span style="color:var(--green);">●</span> <strong style="color:var(--green);">실시간</strong> : 노출측량 + 탐사측량 모두 입력 시 자동 설정 (2회 측량)<br>
+          <span style="color:var(--accent2);">●</span> <strong style="color:var(--accent2);">탐사</strong> : 탐사측량만 입력 시 자동 설정 (1회 측량)
+        </div>
+      </div>
+    </div>
+
+    <!-- 계산 결과 -->
+    <div class="calc-result" id="calcResult" style="display:none;">
+      <div class="calc-title">⚡ 원가 자동 산출 결과</div>
+
+      <div style="font-size:12px; color:var(--text-dim); margin-bottom:1rem;">
+        단가기준: 실시간 노무비 6,209원/m · 기계경비 9,437원/m &nbsp;|&nbsp; 탐사 노무비 3,104원/m · 기계경비 4,719원/m
+      </div>
+
+      <div class="calc-grid" id="calcGrid"></div>
+
+      <div style="margin-top:1rem; padding: 1rem; background:var(--surface); border-radius:10px; border:1px solid var(--green);">
+        <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">공사비 합계 (천원 단위 절사 · 부가세 제외)</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:700; color:var(--green);" id="finalAmount">0</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">부가세(10%) 포함: <span style="color:var(--accent2); font-family:'JetBrains Mono',monospace;" id="finalWithVat">0</span></div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="addProject()">➕ 사업 추가</button>
+      <button class="btn btn-outline" onclick="resetForm()">🔄 초기화</button>
+    </div>
+  </div>
+
+  <!-- ==================== TAB 2: 사업 목록 ==================== -->
+  <div class="tab-content" id="tab-list">
+    <div class="card">
+      <div class="card-title">📋 입력된 사업 목록</div>
+      <div id="projectList">
+        <div class="empty-state">
+          <div class="icon">📭</div>
+          <p>입력된 사업이 없습니다<br>사업 입력 탭에서 추가해주세요</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-success" onclick="downloadExcel()">⬇️ 정산 엑셀 다운로드</button>
+      <button class="btn btn-outline" onclick="switchTab('input')">➕ 사업 추가하기</button>
+    </div>
+  </div>
+
+  <!-- ==================== TAB 3: 정산 현황 ==================== -->
+  <div class="tab-content" id="tab-summary">
+    <div class="summary-grid" id="summaryGrid">
+      <div class="summary-card">
+        <div class="summary-label">총 사업 수</div>
+        <div class="summary-value accent" id="s-count">0</div>
+        <div class="summary-sub">건</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">총 측량거리</div>
+        <div class="summary-value" id="s-dist">0.000</div>
+        <div class="summary-sub">km</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">공사비 합계</div>
+        <div class="summary-value green" id="s-amount">0</div>
+        <div class="summary-sub">원</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">부가세 포함 합계</div>
+        <div class="summary-value green" id="s-vat">0</div>
+        <div class="summary-sub">원</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 사업별 원가계산서 요약</div>
+      <div style="overflow-x:auto;">
+        <table class="ratio-table" id="summaryTable">
+          <thead>
+            <tr>
+              <th>순번</th>
+              <th>구분</th>
+              <th>지역</th>
+              <th>공사코드</th>
+              <th>정산구분</th>
+              <th class="text-right">측량거리(km)</th>
+              <th class="text-right">직접노무비</th>
+              <th class="text-right">기계경비</th>
+              <th class="text-right">공사비 합계</th>
+              <th class="text-right">부가세포함</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody">
+            <tr>
+              <td colspan="10" style="text-align:center; color:var(--text-muted); padding:2rem;">데이터 없음</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-success" onclick="downloadExcel()">⬇️ 정산 엑셀 다운로드</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 단가 상수
+// ============================================================
+const RATES = {
+  realtime: { labor: 6209, machine: 9437 },  // 실시간 (2회 측량) /m
+  probe:    { labor: 3104, machine: 4719 },   // 탐사 (1회 측량) /m
+};
+
+const RATIOS = {
+  indirectLabor:   0.10,    // 간접노무비 (직접노무비의 10%)
+  accident:        0.0356,  // 산재보험료 (노무비의 3.56%)
+  employment:      0.0101,  // 고용보험료 (노무비의 1.01%)
+  pension:         0.0475,  // 국민연금 (직접노무비의 4.75%)
+  health:          0.03595, // 국민건강보험 (직접노무비의 3.595%)
+  safety:          0.0178,  // 안전관리비 (재료비+직접노무비의 1.78%)
+  elderly:         0.1314,  // 노인장기요양 (건강보험의 13.14%)
+  generalMgmt:     0.03,    // 일반관리비 (재료비+노무비+경비의 3%)
+  profit:          0.135,   // 이윤 (노무비+경비+일관비의 13.5%)
+  contractRate:    0.749,   // 낙찰가율 74.9%
+  vat:             0.1,     // 부가세 10%
+};
+
+// ============================================================
+// 상태
+// ============================================================
+let projects = JSON.parse(localStorage.getItem('underground_projects') || '[]');
+
+// ============================================================
+// 탭 전환
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['input','list','summary'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name === 'list') renderList();
+  if (name === 'summary') renderSummary();
+}
+
+// ============================================================
+// 거리 계산 → 정산구분 자동 + 원가 산출
+// ============================================================
+function calcDistance() {
+  const exposed = parseFloat(document.getElementById('露出距離').value) || 0;
+  const probe   = parseFloat(document.getElementById('탐사距離').value) || 0;
+  const total   = exposed + probe;
+
+  document.getElementById('totalDist').textContent = total.toFixed(3) + ' km';
+
+  const badge = document.getElementById('methodBadge');
+  if (exposed === 0 && probe === 0) {
+    badge.textContent = '미입력';
+    badge.className = 'method-badge empty';
+    document.getElementById('calcResult').style.display = 'none';
+    return;
+  }
+
+  let method;
+  if (exposed > 0 && probe > 0) {
+    method = 'realtime';
+    badge.textContent = '⚡ 실시간 (노출 + 탐사)';
+    badge.className = 'method-badge realtime';
+  } else {
+    method = 'probe';
+    badge.textContent = '🔍 탐사';
+    badge.className = 'method-badge probe';
+  }
+
+  const result = calcCost(exposed, probe, method);
+  renderCalcResult(result);
+}
+
+// ============================================================
+// 원가 계산 핵심 로직
+// ============================================================
+function calcCost(exposedKm, probeKm, method) {
+  const exposedM = exposedKm * 1000;
+  const probeM   = probeKm * 1000;
+  const totalM   = exposedM + probeM;
+
+  let directLabor, machineExp;
+
+  if (method === 'realtime') {
+    // 실시간: 전체거리 × 실시간단가 (노출+탐사 합산)
+    directLabor = Math.floor(totalM * RATES.realtime.labor);
+    machineExp  = Math.floor(totalM * RATES.realtime.machine);
+  } else {
+    // 탐사: 탐사거리만 × 탐사단가
+    directLabor = Math.floor(probeM * RATES.probe.labor);
+    machineExp  = Math.floor(probeM * RATES.probe.machine);
+  }
+
+  const indirectLabor = Math.floor(directLabor * RATIOS.indirectLabor);
+  const laborTotal    = directLabor + indirectLabor;
+
+  const accident   = Math.floor(laborTotal    * RATIOS.accident);
+  const employment = Math.floor(laborTotal    * RATIOS.employment);
+  const pension    = Math.floor(directLabor   * RATIOS.pension);
+  const health     = Math.floor(directLabor   * RATIOS.health);
+  const safety     = Math.floor((directLabor) * RATIOS.safety);
+  const elderly    = Math.floor(health        * RATIOS.elderly);
+  const expTotal   = accident + employment + pension + health + safety + elderly + machineExp;
+
+  const materialTotal = 0; // 이 공종은 재료비 없음
+  const generalMgmt = Math.floor((materialTotal + laborTotal + expTotal) * RATIOS.generalMgmt);
+  const profit      = Math.floor((laborTotal + expTotal + generalMgmt)   * RATIOS.profit);
+  const workCost    = materialTotal + laborTotal + expTotal + generalMgmt + profit;
+
+  const contractCost = Math.floor((workCost - safety) * RATIOS.contractRate) + safety;
+  const finalCost    = Math.floor(contractCost / 1000) * 1000; // 천원 절사
+  const withVat      = Math.floor(finalCost * (1 + RATIOS.vat) / 1000) * 1000;
+
+  return {
+    method, exposedKm, probeKm, totalKm: exposedKm + probeKm,
+    directLabor, indirectLabor, laborTotal,
+    accident, employment, pension, health, safety, elderly,
+    machineExp, expTotal,
+    generalMgmt, profit, workCost,
+    finalCost, withVat,
+  };
+}
+
+// ============================================================
+// 계산 결과 렌더링
+// ============================================================
+function renderCalcResult(r) {
+  document.getElementById('calcResult').style.display = 'block';
+
+  const items = [
+    ['직접노무비',   r.directLabor,   false],
+    ['간접노무비(10%)', r.indirectLabor, false],
+    ['노무비 소계',  r.laborTotal,    true],
+    ['기계경비',     r.machineExp,    false],
+    ['산재보험료(3.56%)', r.accident, false],
+    ['고용보험료(1.01%)', r.employment, false],
+    ['국민연금(4.75%)',   r.pension,   false],
+    ['국민건강보험(3.595%)', r.health, false],
+    ['안전관리비(1.78%)', r.safety,   false],
+    ['노인장기요양(13.14%)', r.elderly, false],
+    ['경비 소계',    r.expTotal,      true],
+    ['일반관리비(3%)', r.generalMgmt, false],
+    ['이윤(13.5%)',  r.profit,        false],
+    ['공사비 합계',  r.workCost,      true],
+    ['낙찰가(74.9%)', r.finalCost,   true],
+  ];
+
+  document.getElementById('calcGrid').innerHTML = items.map(([label, val, hl]) => `
+    <div class="calc-item ${hl ? 'highlight' : ''}">
+      <span class="calc-label">${label}</span>
+      <span class="calc-value ${hl ? 'accent' : ''}">${fmt(val)}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('finalAmount').textContent = fmt(r.finalCost) + ' 원';
+  document.getElementById('finalWithVat').textContent = fmt(r.withVat) + ' 원';
+}
+
+// ============================================================
+// 사업 추가
+// ============================================================
+function addProject() {
+  const gubun      = document.getElementById('gubun').value;
+  const region     = document.getElementById('region').value.trim();
+  const surveyName = document.getElementById('surveyName').value.trim();
+  const workCode   = document.getElementById('workCode').value.trim();
+  const workName   = document.getElementById('workName').value.trim();
+  const tangoType  = document.getElementById('tangoType').value;
+  const remark     = document.getElementById('remark').value.trim();
+  const exposed    = parseFloat(document.getElementById('露出距離').value) || 0;
+  const probe      = parseFloat(document.getElementById('탐사距離').value) || 0;
+
+  if (!gubun || !region || !workCode || !workName) {
+    showToast('❌ 구분, 지역, 공사코드, 공사명은 필수입니다', 'error');
+    return;
+  }
+  if (exposed === 0 && probe === 0) {
+    showToast('❌ 측량 거리를 입력해주세요', 'error');
+    return;
+  }
+
+  const method = (exposed > 0 && probe > 0) ? 'realtime' : 'probe';
+  const cost   = calcCost(exposed, probe, method);
+
+  const project = {
+    id: Date.now(),
+    gubun, region, surveyName, workCode, workName, tangoType, remark,
+    exposedKm: exposed, probeKm: probe,
+    method,
+    ...cost,
+  };
+
+  projects.push(project);
+  saveProjects();
+  resetForm();
+  showToast('✅ 사업이 추가되었습니다');
+  updateBadge();
+}
+
+// ============================================================
+// 목록 렌더링
+// ============================================================
+function renderList() {
+  const el = document.getElementById('projectList');
+  if (projects.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>입력된 사업이 없습니다<br>사업 입력 탭에서 추가해주세요</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="project-list">${projects.map((p, i) => `
+    <div class="project-item">
+      <div class="project-num">${i+1}</div>
+      <div class="project-info">
+        <div class="project-name">${p.workName}</div>
+        <div class="project-meta">
+          ${p.gubun} · ${p.region} · ${p.workCode} · 
+          <span style="color:${p.method==='realtime'?'var(--green)':'var(--accent2)'}">${p.method==='realtime'?'실시간':'탐사'}</span>
+          · ${p.totalKm.toFixed(3)}km
+        </div>
+      </div>
+      <div class="project-amount">${fmt(p.finalCost)}원</div>
+      <div class="project-actions">
+        <button class="icon-btn delete" onclick="deleteProject(${p.id})" title="삭제">🗑️</button>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+// ============================================================
+// 요약 렌더링
+// ============================================================
+function renderSummary() {
+  const total     = projects.length;
+  const totalDist = projects.reduce((s, p) => s + p.totalKm, 0);
+  const totalAmt  = projects.reduce((s, p) => s + p.finalCost, 0);
+  const totalVat  = projects.reduce((s, p) => s + p.withVat, 0);
+
+  document.getElementById('s-count').textContent  = total;
+  document.getElementById('s-dist').textContent   = totalDist.toFixed(3);
+  document.getElementById('s-amount').textContent = fmt(totalAmt);
+  document.getElementById('s-vat').textContent    = fmt(totalVat);
+
+  const tbody = document.getElementById('summaryBody');
+  if (projects.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem;">데이터 없음</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = projects.map((p, i) => `
+    <tr>
+      <td class="mono text-dim">${i+1}</td>
+      <td>${p.gubun}</td>
+      <td>${p.region}</td>
+      <td class="mono" style="font-size:11px">${p.workCode}</td>
+      <td><span style="color:${p.method==='realtime'?'var(--green)':'var(--accent2)'}">${p.method==='realtime'?'실시간':'탐사'}</span></td>
+      <td class="mono text-right">${p.totalKm.toFixed(3)}</td>
+      <td class="mono text-right">${fmt(p.directLabor)}</td>
+      <td class="mono text-right">${fmt(p.machineExp)}</td>
+      <td class="mono text-right text-accent">${fmt(p.finalCost)}</td>
+      <td class="mono text-right text-green">${fmt(p.withVat)}</td>
+    </tr>
+  `).join('') + `
+    <tr style="background:rgba(61,220,151,0.05); font-weight:700; border-top:2px solid var(--green);">
+      <td colspan="5" style="color:var(--green)">합계</td>
+      <td class="mono text-right text-green">${totalDist.toFixed(3)}</td>
+      <td class="mono text-right">${fmt(projects.reduce((s,p)=>s+p.directLabor,0))}</td>
+      <td class="mono text-right">${fmt(projects.reduce((s,p)=>s+p.machineExp,0))}</td>
+      <td class="mono text-right text-accent">${fmt(projects.reduce((s,p)=>s+p.finalCost,0))}</td>
+      <td class="mono text-right text-green">${fmt(projects.reduce((s,p)=>s+p.withVat,0))}</td>
+    </tr>
+  `;
+}
+
+// ============================================================
+// 엑셀 다운로드
+// ============================================================
+function downloadExcel() {
+  if (projects.length === 0) {
+    showToast('❌ 다운로드할 사업이 없습니다', 'error');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── 시트 1: 세부내역 ──
+  const detail = [
+    ['통신관로 조사 및 측량 세부내역'],
+    ['', '작성', '작성', '작성', '작성', '작성', '작성', '', '작성', '작성', '작성', '작성', '', '작성'],
+    ['', '순번', '구분', '지역', '공공측량명칭', '공사코드', '공사명', '사업구분(Tango)', '측량거리(km)', 'Tango 주관로 굴착거리(km)', '측량심사거리 검토결과(km)', '', '공공측량 성과심사비', '정산공종 구분', '원가계산서 공사비금액', '비고'],
+    ['', '', '', '', '', '', '', '', '', '', '노출측량', '탐사측량'],
+  ];
+  projects.forEach((p, i) => {
+    detail.push([
+      '', i+1, p.gubun, p.region, p.surveyName, p.workCode, p.workName, p.tangoType,
+      p.totalKm, '',
+      p.exposedKm || '',
+      p.probeKm   || '',
+      '', // 성과심사비 (별도)
+      p.method === 'realtime' ? '실시간' : '탐사',
+      p.finalCost,
+      p.remark,
+    ]);
+  });
+  // 소계
+  detail.push([
+    '', '소 계', '', '', '', '', '', '',
+    projects.reduce((s,p)=>s+p.totalKm,0).toFixed(3), '',
+    projects.reduce((s,p)=>s+p.exposedKm,0).toFixed(3),
+    projects.reduce((s,p)=>s+p.probeKm,0).toFixed(3),
+    0, '',
+    projects.reduce((s,p)=>s+p.finalCost,0),
+  ]);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(detail);
+  ws1['!cols'] = [8,6,8,10,30,20,60,30,14,14,12,12,14,10,18,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, '세부내역');
+
+  // ── 시트 2: 원가계산서 ──
+  const costRows = [
+    ['1. 공사정산내역'],
+    ['   1-1. 원가계산서(총괄)'],
+    [],
+    ['■ 공 사 명 : '],
+    ['비      목', '', '구        분', '구   성   비', '', '', '공사비', '', '', '비  고'],
+    ['', '', '', '', '', '', '선로(Capex)', '선로(Opex)', '계'],
+  ];
+
+  // 각 사업별 원가계산서
+  projects.forEach((p, idx) => {
+    const sheet2 = buildCostSheet(p, idx+1);
+    XLSX.utils.book_append_sheet(wb, sheet2, `${idx+1}. ${p.workCode}`.substring(0, 31));
+  });
+
+  // 통합 원가계산서
+  const ws2 = buildSummarySheet();
+  XLSX.utils.book_append_sheet(wb, ws2, '원가계산서(통합)');
+
+  const now = new Date();
+  const fname = `지하시설물정산_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  showToast(`✅ ${fname} 다운로드 완료`);
+}
+
+function buildCostSheet(p, num) {
+  const rows = [
+    [`${num}. ${p.workCode} 원가계산서`],
+    [`공사명: ${p.workName}`],
+    [`구분: ${p.gubun} | 지역: ${p.region} | 정산구분: ${p.method==='realtime'?'실시간':'탐사'} | 측량거리: ${p.totalKm.toFixed(3)}km`],
+    [],
+    ['비  목', '구  분', '구성비', '', '금액(원)', '비고'],
+    ['순공사원가', '재료비', '(1)직접재료비', '', 0, ''],
+    ['', '', '(2)간접재료비', '', 0, ''],
+    ['', '', '소  계', '', 0, ''],
+    ['', '노무비', '(3)직접노무비', '', p.directLabor, ''],
+    ['', '', '(3-1)도서할증', '도서:직접노무비의 20%', 0, ''],
+    ['', '', '(3-2)도심지할증', '도심지:직접노무비의 20%', 0, '관로공사만 적용'],
+    ['', '', '(4)간접노무비', '직접노무비의 10% 이내', p.indirectLabor, ''],
+    ['', '', '소  계', '', p.laborTotal, ''],
+    ['', '경  비', '산재보험료', '노무비의 3.56%', p.accident, ''],
+    ['', '', '고용보험료', '노무비의 1.01%', p.employment, ''],
+    ['', '', '국민연금보험료', '직접노무비의 4.75%', p.pension, ''],
+    ['', '', '국민건강보험료', '직접노무비의 3.595%', p.health, ''],
+    ['', '', '안전관리비', '재료비+직접노무비의 1.78%', p.safety, ''],
+    ['', '', '노인장기요양보험', '건강보험료의 13.14%', p.elderly, ''],
+    ['', '', '기계경비', '', p.machineExp, ''],
+    ['', '', '(5)소  계', '', p.expTotal, ''],
+    ['(6)일반관리비', '', '', '재료비+노무비+경비의 3% 이내', p.generalMgmt, ''],
+    ['(7)이  윤', '', '', '노무비+경비+일관비의 13.5% 이내', p.profit, ''],
+    ['(8)공사비', '', '', '', p.workCost, ''],
+    ['(9)낙찰가', '', '', '74.9%', p.finalCost, ''],
+    [],
+    ['(17)공사비 합계', '', '', '', p.finalCost, ''],
+    ['(18)부가가치세', '', '', '10%', Math.floor(p.finalCost*0.1/1000)*1000, ''],
+    ['(19)총  계', '', '', '', p.withVat, ''],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [18,14,22,28,16,20].map(w=>({wch:w}));
+  return ws;
+}
+
+function buildSummarySheet() {
+  const totalLabor   = projects.reduce((s,p)=>s+p.directLabor,0);
+  const totalMachine = projects.reduce((s,p)=>s+p.machineExp,0);
+  const totalFinal   = projects.reduce((s,p)=>s+p.finalCost,0);
+  const totalVat     = projects.reduce((s,p)=>s+p.withVat,0);
+
+  const rows = [
+    ['원가계산서 통합 요약'],
+    [],
+    ['순번','구분','지역','공사코드','정산구분','측량거리(km)','직접노무비','간접노무비','노무비소계','기계경비','산재보험','고용보험','국민연금','건강보험','안전관리비','노인장기요양','경비소계','일반관리비','이윤','공사비','낙찰가(공사비합계)','부가세','총계'],
+  ];
+
+  projects.forEach((p,i) => {
+    rows.push([
+      i+1, p.gubun, p.region, p.workCode,
+      p.method==='realtime'?'실시간':'탐사',
+      p.totalKm.toFixed(3),
+      p.directLabor, p.indirectLabor, p.laborTotal,
+      p.machineExp, p.accident, p.employment, p.pension, p.health, p.safety, p.elderly, p.expTotal,
+      p.generalMgmt, p.profit, p.workCost, p.finalCost,
+      Math.floor(p.finalCost*0.1/1000)*1000, p.withVat,
+    ]);
+  });
+
+  rows.push([
+    '합계','','','','',
+    projects.reduce((s,p)=>s+p.totalKm,0).toFixed(3),
+    projects.reduce((s,p)=>s+p.directLabor,0),
+    projects.reduce((s,p)=>s+p.indirectLabor,0),
+    projects.reduce((s,p)=>s+p.laborTotal,0),
+    projects.reduce((s,p)=>s+p.machineExp,0),
+    projects.reduce((s,p)=>s+p.accident,0),
+    projects.reduce((s,p)=>s+p.employment,0),
+    projects.reduce((s,p)=>s+p.pension,0),
+    projects.reduce((s,p)=>s+p.health,0),
+    projects.reduce((s,p)=>s+p.safety,0),
+    projects.reduce((s,p)=>s+p.elderly,0),
+    projects.reduce((s,p)=>s+p.expTotal,0),
+    projects.reduce((s,p)=>s+p.generalMgmt,0),
+    projects.reduce((s,p)=>s+p.profit,0),
+    projects.reduce((s,p)=>s+p.workCost,0),
+    projects.reduce((s,p)=>s+p.finalCost,0),
+    projects.reduce((s,p)=>s+Math.floor(p.finalCost*0.1/1000)*1000,0),
+    projects.reduce((s,p)=>s+p.withVat,0),
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [6,8,10,20,10,14,...Array(17).fill(14)].map(w=>({wch:w}));
+  return ws;
+}
+
+// ============================================================
+// 유틸리티
+// ============================================================
+function deleteProject(id) {
+  if (!confirm('이 사업을 삭제하시겠습니까?')) return;
+  projects = projects.filter(p => p.id !== id);
+  saveProjects();
+  renderList();
+  updateBadge();
+  showToast('🗑️ 삭제되었습니다');
+}
+
+function resetForm() {
+  ['gubun','region','surveyName','workCode','workName','tangoType','remark'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('露出距離').value = '';
+  document.getElementById('탐사距離').value = '';
+  document.getElementById('totalDist').textContent = '0.000 km';
+  document.getElementById('methodBadge').textContent = '미입력';
+  document.getElementById('methodBadge').className = 'method-badge empty';
+  document.getElementById('calcResult').style.display = 'none';
+}
+
+function saveProjects() {
+  localStorage.setItem('underground_projects', JSON.stringify(projects));
+}
+
+function updateBadge() {
+  document.getElementById('projectCount').textContent = `사업 ${projects.length}건`;
+}
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('ko-KR');
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = type === 'error' ? 'var(--red)' : 'var(--green)';
+  t.style.color = type === 'error' ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// 초기화
+updateBadge();
+</script>
+</body>
+</html>
