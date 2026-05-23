@@ -463,13 +463,78 @@
 
 <div class="container">
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('input')">📝 사업 입력</button>
+    <button class="tab active" onclick="switchTab('upload')">📂 양식 업로드</button>
+    <button class="tab" onclick="switchTab('input')">📝 직접 입력</button>
     <button class="tab" onclick="switchTab('list')">📋 사업 목록</button>
     <button class="tab" onclick="switchTab('summary')">📊 정산 현황</button>
   </div>
 
+  <!-- ==================== TAB 0: 양식 업로드 ==================== -->
+  <div class="tab-content active" id="tab-upload">
+    <div class="card">
+      <div class="card-title">📂 정산양식 엑셀 업로드</div>
+      <div style="margin-bottom:1rem; font-size:14px; color:var(--text-dim); line-height:1.8;">
+        정산양식(세부내역 시트)이 포함된 엑셀 파일을 업로드하면<br>
+        자동으로 사업 정보와 거리를 읽어 금액을 계산합니다.
+      </div>
+
+      <!-- 드래그앤드롭 영역 -->
+      <div id="dropZone" style="
+        border: 2px dashed var(--border);
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--surface2);
+      "
+        onclick="document.getElementById('fileInput').click()"
+        ondragover="event.preventDefault(); this.style.borderColor='var(--accent)'; this.style.background='#eff6ff';"
+        ondragleave="this.style.borderColor='var(--border)'; this.style.background='var(--surface2)';"
+        ondrop="handleDrop(event)"
+      >
+        <div style="font-size:3rem; margin-bottom:1rem;">📊</div>
+        <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:8px;">엑셀 파일을 여기에 드래그하거나 클릭하세요</div>
+        <div style="font-size:13px; color:var(--text-dim);">지원 형식: .xlsx · 세부내역 시트가 포함된 정산양식</div>
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
+      </div>
+    </div>
+
+    <!-- 업로드 결과 미리보기 -->
+    <div id="uploadPreview" style="display:none;">
+      <div class="card">
+        <div class="card-title">✅ 읽어온 사업 목록 확인</div>
+        <div style="font-size:13px; color:var(--text-dim); margin-bottom:1rem;">
+          아래 내용을 확인하고 <strong>전체 추가</strong> 버튼을 누르면 금액이 계산되어 사업 목록에 추가됩니다.
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="ratio-table" id="previewTable">
+            <thead>
+              <tr>
+                <th>순번</th>
+                <th>구분</th>
+                <th>지역</th>
+                <th>공사코드</th>
+                <th>공사명</th>
+                <th>노출측량(km)</th>
+                <th>탐사측량(km)</th>
+                <th>정산구분</th>
+                <th class="text-right">예상 공사비</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <div class="btn-group" style="margin-top:1.5rem;">
+          <button class="btn btn-success" onclick="addAllFromUpload()">✅ 전체 추가하기</button>
+          <button class="btn btn-outline" onclick="cancelUpload()">❌ 취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== TAB 1: 사업 입력 ==================== -->
-  <div class="tab-content active" id="tab-input">
+  <div class="tab-content" id="tab-input">
 
     <div class="card">
       <div class="card-title">🏗️ 사업 기본 정보</div>
@@ -676,7 +741,7 @@ let projects = JSON.parse(localStorage.getItem('underground_projects') || '[]');
 // ============================================================
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const names = ['input','list','summary'];
+    const names = ['upload','input','list','summary'];
     t.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1121,6 +1186,137 @@ function showToast(msg, type='success') {
   t.style.color = type === 'error' ? 'var(--red)' : 'var(--green)';
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+
+// ============================================================
+// 엑셀 업로드 처리
+// ============================================================
+let uploadedProjects = [];
+
+function handleDrop(e) {
+  e.preventDefault();
+  const zone = document.getElementById('dropZone');
+  zone.style.borderColor = 'var(--border)';
+  zone.style.background = 'var(--surface2)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.xlsx')) {
+    handleFileUpload(file);
+  } else {
+    showToast('❌ .xlsx 파일만 업로드 가능합니다', 'error');
+  }
+}
+
+function handleFileUpload(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+
+      // 세부내역 시트 찾기
+      const sheetName = wb.SheetNames.find(n => n.includes('세부내역'));
+      if (!sheetName) {
+        showToast('❌ 세부내역 시트를 찾을 수 없습니다', 'error');
+        return;
+      }
+
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      uploadedProjects = [];
+
+      // 5행부터 23행까지 (인덱스 4~22) 데이터 읽기
+      // 열 인덱스: B=1(순번), C=2(구분), D=3(지역), E=4(공공측량명칭),
+      //            F=5(공사코드), G=6(공사명), H=7(사업구분),
+      //            K=10(노출측량), L=11(탐사측량), M=12(성과심사비), N=13(정산구분), O=14(비고)
+      for (let i = 4; i <= 22; i++) {
+        const row = rows[i];
+        if (!row) continue;
+
+        const gubun    = row[2];
+        const region   = row[3];
+        const surveyName = row[4];
+        const workCode = row[5];
+        const workName = row[6];
+        const tango    = row[7];
+        const exposed  = parseFloat(row[10]) || 0;
+        const probe    = parseFloat(row[11]) || 0;
+        const remark   = row[14];
+
+        // 공사코드나 공사명이 있는 행만 처리
+        if (!workCode && !workName) continue;
+        if (exposed === 0 && probe === 0) continue;
+
+        const method = (exposed > 0 && probe > 0) ? 'realtime' : 'probe';
+        const cost = calcCost(exposed, probe, method);
+
+        uploadedProjects.push({
+          id: Date.now() + i,
+          gubun: gubun || '',
+          region: region || '',
+          surveyName: surveyName || '',
+          workCode: workCode || '',
+          workName: workName || '',
+          tangoType: tango || '[E-4. 지장이설] 원인자 공사',
+          remark: remark || '',
+          exposedKm: exposed,
+          probeKm: probe,
+          method,
+          ...cost,
+        });
+      }
+
+      if (uploadedProjects.length === 0) {
+        showToast('❌ 읽어온 사업 데이터가 없습니다. 노출측량 또는 탐사측량 거리를 확인해주세요.', 'error');
+        return;
+      }
+
+      renderUploadPreview();
+      showToast(`✅ ${uploadedProjects.length}개 사업을 읽었습니다`);
+    } catch(err) {
+      showToast('❌ 파일 읽기 오류: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderUploadPreview() {
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = uploadedProjects.map((p, i) => `
+    <tr>
+      <td class="mono text-dim">${i+1}</td>
+      <td>${p.gubun}</td>
+      <td>${p.region}</td>
+      <td class="mono" style="font-size:11px">${p.workCode}</td>
+      <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px;" title="${p.workName}">${p.workName}</td>
+      <td class="mono text-right">${p.exposedKm > 0 ? p.exposedKm.toFixed(3) : '-'}</td>
+      <td class="mono text-right">${p.probeKm > 0 ? p.probeKm.toFixed(3) : '-'}</td>
+      <td><span style="color:${p.method==='realtime'?'var(--green)':'var(--accent2)'}">${p.method==='realtime'?'⚡실시간':'🔍탐사'}</span></td>
+      <td class="mono text-right" style="color:var(--green); font-weight:700;">${fmt(p.finalCost)}원</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('uploadPreview').style.display = 'block';
+  document.getElementById('uploadPreview').scrollIntoView({ behavior: 'smooth' });
+}
+
+function addAllFromUpload() {
+  if (uploadedProjects.length === 0) return;
+  projects.push(...uploadedProjects);
+  saveProjects();
+  updateBadge();
+  uploadedProjects = [];
+  document.getElementById('uploadPreview').style.display = 'none';
+  showToast(`✅ ${projects.length}개 사업이 추가되었습니다`);
+  setTimeout(() => switchTab('list'), 800);
+}
+
+function cancelUpload() {
+  uploadedProjects = [];
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('fileInput').value = '';
 }
 
 // 초기화
