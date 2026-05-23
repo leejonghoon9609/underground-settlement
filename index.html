@@ -1310,27 +1310,26 @@ function handleFileUpload(file) {
       }
 
       const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      // 좌표 기반으로 셀 직접 읽기 (열 위치 변동 대응)
+      function cell(col, row) {
+        const addr = col + row;
+        const c = ws[addr];
+        return c ? c.v : null;  // .v = 실제 값 (수식 아닌 값)
+      }
 
       uploadedProjects = [];
 
-      // 5행부터 23행까지 (인덱스 4~22) 데이터 읽기
-      // 열 인덱스: B=1(순번), C=2(구분), D=3(지역), E=4(공공측량명칭),
-      //            F=5(공사코드), G=6(공사명), H=7(사업구분),
-      //            K=10(노출측량), L=11(탐사측량), M=12(성과심사비), N=13(정산구분), O=14(비고)
-      for (let i = 4; i <= 22; i++) {
-        const row = rows[i];
-        if (!row) continue;
-
-        const gubun    = row[2];
-        const region   = row[3];
-        const surveyName = row[4];
-        const workCode = row[5];
-        const workName = row[6];
-        const tango    = row[7];
-        const exposed  = parseFloat(row[10]) || 0;
-        const probe    = parseFloat(row[11]) || 0;
-        const remark   = row[14];
+      // 5행~23행 순회
+      for (let r = 5; r <= 23; r++) {
+        const gubun      = cell('C', r);
+        const region     = cell('D', r);
+        const surveyName = cell('E', r);
+        const workCode   = cell('F', r);
+        const workName   = cell('G', r);
+        const tango      = cell('H', r);
+        const exposed    = parseFloat(cell('K', r)) || 0;
+        const probe      = parseFloat(cell('L', r)) || 0;
+        const remark     = cell('O', r);
 
         // 공사코드나 공사명이 있는 행만 처리
         if (!workCode && !workName) continue;
