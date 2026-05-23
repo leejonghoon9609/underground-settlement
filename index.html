@@ -729,9 +729,9 @@ function calcCost(exposedKm, probeKm, method) {
   let directLabor, machineExp;
 
   if (method === 'realtime') {
-    // 실시간: 전체거리 × 실시간단가 (노출+탐사 합산)
-    directLabor = Math.floor(totalM * RATES.realtime.labor);
-    machineExp  = Math.floor(totalM * RATES.realtime.machine);
+    // 실시간: 탐사거리 × 실시간단가 (노출측량 유무로 구분만, 단가 계산은 탐사거리 기준)
+    directLabor = Math.floor(probeM * RATES.realtime.labor);
+    machineExp  = Math.floor(probeM * RATES.realtime.machine);
   } else {
     // 탐사: 탐사거리만 × 탐사단가
     directLabor = Math.floor(probeM * RATES.probe.labor);
