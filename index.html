@@ -834,7 +834,7 @@ function calcCost(exposedKm, probeKm, method) {
 
   const contractCost = Math.floor((workCost - safety) * RATIOS.contractRate) + safety;
   const finalCost    = Math.floor(contractCost / 1000) * 1000; // 천원 절사
-  const withVat      = Math.floor(finalCost * (1 + RATIOS.vat) / 1000) * 1000;
+  const withVat      = Math.round(finalCost * (1 + RATIOS.vat));
 
   return {
     method, exposedKm, probeKm, totalKm: exposedKm + probeKm,
@@ -1169,7 +1169,7 @@ function buildCostSheet(p, num) {
     ['(9)낙찰가', '', '', '74.9%', p.finalCost, ''],
     [],
     ['(17)공사비 합계', '', '', '', p.finalCost, ''],
-    ['(18)부가가치세', '', '', '10%', Math.floor(p.finalCost*0.1/1000)*1000, ''],
+    ['(18)부가가치세', '', '', '10%', Math.round(p.finalCost*0.1), ''],
     ['(19)총  계', '', '', '', p.withVat, ''],
   ];
 
@@ -1198,7 +1198,7 @@ function buildSummarySheet() {
       p.directLabor, p.indirectLabor, p.laborTotal,
       p.machineExp, p.accident, p.employment, p.pension, p.health, p.safety, p.elderly, p.expTotal,
       p.generalMgmt, p.profit, p.workCost, p.finalCost,
-      Math.floor(p.finalCost*0.1/1000)*1000, p.withVat,
+      Math.round(p.finalCost*0.1), p.withVat,
     ]);
   });
 
