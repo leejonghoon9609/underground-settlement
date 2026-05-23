@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -746,7 +746,8 @@ const RATIOS = {
 // ============================================================
 // 상태
 // ============================================================
-let projects = JSON.parse(localStorage.getItem('underground_projects') || '[]');
+let projects = [];
+try { projects = JSON.parse(localStorage.getItem('underground_projects') || '[]'); } catch(e) { projects = []; }
 
 // ============================================================
 // 탭 전환
@@ -1255,7 +1256,7 @@ function resetForm() {
 }
 
 function saveProjects() {
-  localStorage.setItem('underground_projects', JSON.stringify(projects));
+  try { localStorage.setItem('underground_projects', JSON.stringify(projects)); } catch(e) {}
 }
 
 function updateBadge() {
@@ -1296,6 +1297,10 @@ function handleDrop(e) {
 
 function handleFileUpload(file) {
   if (!file) return;
+  if (typeof XLSX === 'undefined') {
+    showToast('❌ XLSX 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.', 'error');
+    return;
+  }
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
