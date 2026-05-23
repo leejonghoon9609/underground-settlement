@@ -932,13 +932,10 @@ function renderList() {
     return;
   }
 
-  // 저장된 데이터에 finalCost 없으면 재계산
+  // 항상 전체 재계산 (단가/비율 변경 반영)
   projects = projects.map(p => {
-    if (!p.finalCost || p.finalCost === 0) {
-      const recalc = calcCost(p.exposedKm || 0, p.probeKm || 0, p.method || 'probe');
-      return { ...p, ...recalc };
-    }
-    return p;
+    const recalc = calcCost(p.exposedKm || 0, p.probeKm || 0, p.method || 'probe');
+    return { ...p, ...recalc };
   });
   saveProjects();
 
