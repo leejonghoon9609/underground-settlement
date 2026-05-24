@@ -1022,11 +1022,8 @@ function xlsCost(wb) {
   MC(ws,5,1,5,2,'비      목',     {bold:true,h:'center',bg:H});
   SC(ws,5,3,'구        분',        {bold:true,h:'center',bg:H});
   MC(ws,5,4,5,6,'구   성   비',    {bold:true,h:'center',bg:H});
-  SC(ws,5,5,null,{bg:H}); SC(ws,5,6,null,{bg:H});
   MC(ws,5,7,5,9,'공사비',          {bold:true,h:'center',bg:H});
-  SC(ws,5,8,null,{bg:H}); SC(ws,5,9,null,{bg:H});
   MC(ws,5,10,5,12,'비  고',        {bold:true,h:'center',bg:H});
-  SC(ws,5,11,null,{bg:H}); SC(ws,5,12,null,{bg:H});
 
   projects.forEach((p,i) => {
     const c = 13+i*3;
@@ -1093,15 +1090,12 @@ function xlsCost(wb) {
       SC(ws,r,3,gubun||null,{bold,bg});
     } else {
       MC(ws,r,1,r,3,'   '+bimok,{bold,bg});
-      SC(ws,r,2,null,{bold,bg}); SC(ws,r,3,null,{bold,bg});
     }
     MC(ws,r,4,r,6,ratio||null,{bg});
-    SC(ws,r,5,null,{bg}); SC(ws,r,6,null,{bg});
     SC(ws,r,7,tv||null,{bold,h:'right',bg,fmt:'#,##0'});
     SC(ws,r,8,tv?0:null,{h:'right',bg,fmt:'#,##0'});
     SC(ws,r,9,tv||null,{bold,h:'right',bg,fmt:'#,##0'});
     MC(ws,r,10,r,12,note||null,{bg});
-    SC(ws,r,11,null,{bg}); SC(ws,r,12,null,{bg});
 
     projects.forEach((p,i) => {
       const c = 13+i*3;
