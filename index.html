@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
@@ -1510,7 +1511,7 @@ function handleDrop(e) {
 function handleFileUpload(file) {
   if (!file) return;
   if (typeof XLSX === 'undefined') {
-    showToast('❌ XLSX 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.', 'error');
+    showToast('❌ 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error');
     return;
   }
   const reader = new FileReader();
