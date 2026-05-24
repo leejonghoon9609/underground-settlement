@@ -1156,82 +1156,108 @@ function makeGaljiSheet(wb, ym) {
     {width:40},{width:14},{width:16},{width:14},{width:14},{width:14},{width:16},{width:14},{width:22}
   ];
 
-  // 행1 제목
-  mergeSet(ws,1,1,1,9, `${ym} 기성준공내역서_도급_SKTNS_수도권지사_측량`,
-    {bold:true,sz:12,color:'FFFFFF',bg:'4F81BD',h:'center',v:'middle'});
+  // 행높이
   ws.getRow(1).height = 26;
+  ws.getRow(2).height = 32;
+  ws.getRow(3).height = 18;
+  for (let r=4; r<=13; r++) ws.getRow(r).height = 18;
 
-  // 행2 헤더
+  // ── 행1 제목 (파란 배경 + 흰글씨 + bold)
+  ws.mergeCells(1,1,1,9);
+  const t1 = ws.getCell(1,1);
+  t1.value = `${ym} 기성준공내역서_도급_SKTNS_수도권지사_측량`;
+  t1.font = {bold:true, size:12, color:{argb:'FFFFFFFF'}, name:'맑은 고딕'};
+  t1.fill = bgFill('1F497D');
+  t1.alignment = aln('center','middle');
+  t1.border = ALL_THIN;
+
+  // ── 행2~3 헤더 병합
   ws.mergeCells(2,1,3,1); ws.mergeCells(2,2,3,2); ws.mergeCells(2,3,3,3);
   ws.mergeCells(2,4,2,6);
   ws.mergeCells(2,7,3,7); ws.mergeCells(2,8,3,8); ws.mergeCells(2,9,3,9);
 
-  const hdrs2 = [
-    [1,'사업구분(Tango)'],[2,'측량거리(km)'],[3,'Tango(km)\n※주관로굴착거리'],
-    [4,'측량심사거리 검토결과(km)'],[7,'정산금액'],[8,'안전관리비'],[9,'비고']
+  // 헤더 배경색: theme:6 tint:0.6 = 연두색 계열 → '92D050' 근사
+  const HDR_GREEN = '92D050';  // 원본 헤더색 (초록계열)
+  const HDR_YEL   = 'FFFF00';  // 노란색 (측량심사거리)
+
+  const h2items = [
+    [1,'사업구분(Tango)'], [2,'측량거리(km)'], [3,'Tango(km)
+※주관로굴착거리'],
+    [4,'측량심사거리 검토결과(km)'], [7,'정산금액'], [8,'안전관리비'], [9,'비고']
   ];
   for (let c=1; c<=9; c++) {
-    setCell(ws,2,c,null,{bold:true,h:'center',v:'middle',bg:'C5D9F1',wrap:true});
-    setCell(ws,3,c,null,{bold:true,h:'center',v:'middle',bg:'C5D9F1'});
+    const bg = (c>=4 && c<=6) ? HDR_YEL : HDR_GREEN;
+    setCell(ws,2,c,null,{bold:true,h:'center',v:'middle',bg,wrap:true});
+    setCell(ws,3,c,null,{bold:true,h:'center',v:'middle',bg});
   }
-  hdrs2.forEach(([c,t]) => setCell(ws,2,c,t,{bold:true,h:'center',v:'middle',bg:'C5D9F1',wrap:true}));
-  ws.getRow(2).height = 32;
+  h2items.forEach(([c,t]) => {
+    const bg = (c>=4 && c<=6) ? HDR_YEL : HDR_GREEN;
+    setCell(ws,2,c,t,{bold:true,h:'center',v:'middle',bg,wrap:true});
+  });
 
   // 행3 하위헤더
-  setCell(ws,3,4,'노출측량(km)',{bold:true,h:'center',bg:'FFFF00'});
-  setCell(ws,3,5,'탐사측량(km)',{bold:true,h:'center',bg:'FFFF00'});
-  setCell(ws,3,6,'소계',{bold:true,h:'center',bg:'C5D9F1'});
+  setCell(ws,3,4,'노출측량(km)',{bold:true,h:'center',bg:HDR_YEL});
+  setCell(ws,3,5,'탐사측량(km)',{bold:true,h:'center',bg:HDR_GREEN});
+  setCell(ws,3,6,'소계',{bold:true,h:'center',bg:HDR_GREEN});
 
-  // 집계
-  const agg = {};
-  TANGO_LIST.forEach(t => { agg[t] = {dist:0,tango:0,exp:0,prob:0,amt:0}; });
-  projects.forEach(p => {
-    const t = p.tangoType||'';
-    if (!agg[t]) return;
-    agg[t].dist  += (p.exposedKm||0)+(p.probeKm||0);
-    agg[t].tango += p.tangoKm||0;
-    agg[t].exp   += p.exposedKm||0;
-    agg[t].prob  += p.probeKm||0;
-    agg[t].amt   += p.finalCost||0;
+  // ── 데이터행 (4~11): 사업구분별
+  // 원본: A열 배경없음+왼쪽정렬+bold, B~F 배경없음, G~H 회색(theme0 tint-0.25='BFBFBF')
+  const GREY = 'BFBFBF';
+
+  TANGO_LIST.forEach((t, idx) => {
+    const r = 4 + idx;
+    const dataRow = r;
+
+    // A열: 배경없음, 왼쪽정렬, bold
+    setCell(ws,r,1,t,{bold:true,h:'left',v:'middle',bg:null});
+
+    // B~F열: SUMIF/SUM 수식
+    const detailRange = "'세부내역'!$H$5:$H$23";
+    const criteria = `'공공측량 갑지'!A${r}`;
+    ws.getCell(r,2).value = {formula:`SUMIF(${detailRange},${criteria},'세부내역'!$I$5:$I$23)`,result:0};
+    ws.getCell(r,3).value = {formula:`SUMIF(${detailRange},${criteria},'세부내역'!$J$5:$J$23)`,result:0};
+    ws.getCell(r,4).value = {formula:`SUMIF(${detailRange},${criteria},'세부내역'!$K$5:$K$23)`,result:0};
+    ws.getCell(r,5).value = {formula:`SUMIF(${detailRange},${criteria},'세부내역'!$L$5:$L$23)`,result:0};
+    ws.getCell(r,6).value = {formula:`SUM(D${r}:E${r})`,result:0};
+    ws.getCell(r,7).value = {formula:`SUMIF(${detailRange},${criteria},'세부내역'!$O$5:$O$23)`,result:0};
+
+    // 스타일 적용
+    for (let c=1; c<=9; c++) {
+      const cell = ws.getCell(r,c);
+      cell.border = ALL_THIN;
+      cell.font = {bold: c===1, size:9, name:'맑은 고딕'};
+      if (c>=7 && c<=8) {
+        cell.fill = bgFill(GREY);
+      }
+      if (c>=2 && c<=6) {
+        cell.alignment = aln('center','middle');
+        cell.numFmt = '#,##0.000';
+      }
+      if (c===7) {
+        cell.alignment = aln('center','middle');
+        cell.numFmt = '#,##0';
+      }
+    }
   });
 
-  let row = 4;
-  TANGO_LIST.forEach(t => {
-    const a = agg[t];
-    const has = a.dist > 0;
-    const bg = has ? 'FFFFCC' : null;
-    const o = {h:'center',v:'middle'};
-    setCell(ws,row,1,t,{...o,h:'left',bg});
-    setCell(ws,row,2,has?+a.dist.toFixed(3):null,{...o,bg,numfmt:DIS});
-    setCell(ws,row,3,has?+a.tango.toFixed(3):null,{...o,bg,numfmt:DIS});
-    setCell(ws,row,4,has?+a.exp.toFixed(3):null,{...o,bg,numfmt:DIS});
-    setCell(ws,row,5,has?+a.prob.toFixed(3):null,{...o,bg,numfmt:DIS});
-    setCell(ws,row,6,has?+(a.exp+a.prob).toFixed(3):null,{...o,bg,numfmt:DIS});
-    setCell(ws,row,7,has?a.amt:null,{...o,bg,numfmt:NUM});
-    setCell(ws,row,8,null,{...o,bg});
-    setCell(ws,row,9,null,{...o,bg});
-    ws.getRow(row).height = 18;
-    row++;
+  // ── 합계행 (12): 회색 배경 + SUM 수식
+  const totR = 4 + TANGO_LIST.length;
+  setCell(ws,totR,1,'합계',{bold:true,h:'center',v:'middle',bg:GREY});
+  const sumCols = [2,3,4,5,6,7];
+  sumCols.forEach((c,i) => {
+    const startR = 4;
+    const endR = totR - 1;
+    ws.getCell(totR,c).value = {formula:`SUM(${String.fromCharCode(65+c-1)}${startR}:${String.fromCharCode(65+c-1)}${endR})`,result:0};
+    ws.getCell(totR,c).fill = bgFill(GREY);
+    ws.getCell(totR,c).font = {bold:true, size:9, name:'맑은 고딕'};
+    ws.getCell(totR,c).border = ALL_THIN;
+    ws.getCell(totR,c).alignment = aln('center','middle');
+    ws.getCell(totR,c).numFmt = c===7 ? '#,##0' : '#,##0.000';
   });
-
-  // 합계
-  const td=+Object.values(agg).reduce((s,a)=>s+a.dist,0).toFixed(3);
-  const tt=+Object.values(agg).reduce((s,a)=>s+a.tango,0).toFixed(3);
-  const te=+Object.values(agg).reduce((s,a)=>s+a.exp,0).toFixed(3);
-  const tp=+Object.values(agg).reduce((s,a)=>s+a.prob,0).toFixed(3);
-  const ta=Object.values(agg).reduce((s,a)=>s+a.amt,0);
-  const o={bold:true,h:'center',v:'middle',bg:'BDD7EE'};
-  setCell(ws,row,1,'합계',{...o,h:'center'});
-  setCell(ws,row,2,td,{...o,numfmt:DIS});
-  setCell(ws,row,3,tt,{...o,numfmt:DIS});
-  setCell(ws,row,4,te,{...o,numfmt:DIS});
-  setCell(ws,row,5,tp,{...o,numfmt:DIS});
-  setCell(ws,row,6,+(te+tp).toFixed(3),{...o,numfmt:DIS});
-  setCell(ws,row,7,ta,{...o,numfmt:NUM});
-  setCell(ws,row,8,null,{...o});
-  setCell(ws,row,9,null,{...o});
-  ws.getRow(row).height = 18;
+  setCell(ws,totR,8,null,{bg:GREY});
+  setCell(ws,totR,9,null,{bg:null});
 }
+
 
 // ─── 시트2: 원가계산서 ─────────────────────────────────
 function makeCostSheet(wb) {
