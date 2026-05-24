@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -1075,313 +1075,405 @@ function downloadExcel() {
     showToast('❌ 다운로드할 사업이 없습니다', 'error');
     return;
   }
+  showToast('⏳ 엑셀 생성 중...');
+  setTimeout(async () => {
+    try {
+      const wb = new ExcelJS.Workbook();
+      const now = new Date();
+      const ym = `${now.getFullYear()}년 ${now.getMonth()+1}월`;
 
-  const wb = XLSX.utils.book_new();
+      makeGaljiSheet(wb, ym);
+      makeCostSheet(wb);
+      makeDetailSheet(wb, ym);
 
-  // ── 시트1: 공공측량 갑지 ──
-  const ws1 = makeGaljiSheet();
-  XLSX.utils.book_append_sheet(wb, ws1, '공공측량 갑지');
-
-  // ── 시트2: 세부내역 ──
-  const ws2 = makeDetailSheet();
-  XLSX.utils.book_append_sheet(wb, ws2, '세부내역');
-
-  // ── 시트3: 원가계산서 ──
-  const ws3 = makeCostSheet();
-  XLSX.utils.book_append_sheet(wb, ws3, '원가계산서');
-
-  const now = new Date();
-  const fname = `정산내역서_${now.getFullYear()}년${String(now.getMonth()+1).padStart(2,'0')}월_수도권지사_측량.xlsx`;
-  XLSX.writeFile(wb, fname);
-  showToast(`✅ ${fname} 다운로드 완료`);
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `정산내역서_${now.getFullYear()}년${String(now.getMonth()+1).padStart(2,'0')}월_수도권지사_측량.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✅ 다운로드 완료!');
+    } catch(e) {
+      showToast('❌ 오류: ' + e.message, 'error');
+      console.error(e);
+    }
+  }, 100);
 }
 
-// ─────────────────────────────────────────────────────
-// TANGO 사업구분 목록
-// ─────────────────────────────────────────────────────
-const TANGO_LIST = [
-  '[A-2. 인입관로] 인입 관로 공급',
-  '[B-3. 기간선로] 신설/증설/보강',
-  '[B-3. 기간선로] 신축국사 연계 간선선로',
-  '[C-2. 프론트홀 선로(5G)] 용량증설(5G)',
-  '[E-4. 지장이설] 원인자 공사',
-  '[E-4. 지장이설] 지중 인프라 확보',
-  '[E-4. 지장이설] 순수 지장 이설',
-  '[G-3. 프론트홀 선로(4G)] 용량증설(4G)',
-];
+// ─── 공통 스타일 헬퍼 ───────────────────────────────────
+const THIN = {style:'thin', color:{argb:'FF000000'}};
+const MED  = {style:'medium', color:{argb:'FF000000'}};
+const ALL_THIN = {top:THIN,bottom:THIN,left:THIN,right:THIN};
+const ALL_MED  = {top:MED,bottom:MED,left:MED,right:MED};
 
-// ─────────────────────────────────────────────────────
-// 시트1: 공공측량 갑지
-// ─────────────────────────────────────────────────────
-function makeGaljiSheet() {
-  // 사업구분별 집계
-  const agg = {};
-  TANGO_LIST.forEach(t => { agg[t] = {dist:0, tango:0, exposed:0, probe:0, amount:0, safety:0}; });
+function argb(hex6){ return 'FF' + hex6; }
+function bgFill(hex6){ return {type:'pattern',pattern:'solid',fgColor:{argb:argb(hex6)}}; }
+function fnt(bold=false,sz=9,color='000000'){ return {bold,size:sz,color:{argb:argb(color)},name:'맑은 고딕'}; }
+function aln(h='left',v='middle',wrap=false){ return {horizontal:h,vertical:v,wrapText:wrap}; }
 
-  projects.forEach(p => {
-    const t = p.tangoType || '';
-    if (!agg[t]) return;
-    agg[t].dist    += (p.exposedKm||0) + (p.probeKm||0);
-    agg[t].tango   += p.tangoKm||0;
-    agg[t].exposed += p.exposedKm||0;
-    agg[t].probe   += p.probeKm||0;
-    agg[t].amount  += p.finalCost||0;
-    agg[t].safety  += p.safety||0;
-  });
+function setCell(ws, row, col, val, opts={}) {
+  const cell = ws.getCell(row, col);
+  if (val !== undefined) cell.value = val;
+  if (opts.bold !== undefined || opts.sz || opts.color) {
+    cell.font = fnt(opts.bold||false, opts.sz||9, opts.color||'000000');
+  }
+  if (opts.h || opts.v || opts.wrap) {
+    cell.alignment = aln(opts.h||'left', opts.v||'middle', opts.wrap||false);
+  }
+  if (opts.bg) cell.fill = bgFill(opts.bg);
+  if (opts.border !== false) cell.border = ALL_THIN;
+  if (opts.numfmt) cell.numFmt = opts.numfmt;
+  return cell;
+}
 
-  const now = new Date();
-  const title = `${now.getFullYear()}년 기성준공내역서_도급_SKTNS_수도권지사_측량(${now.getMonth()+1}월)`;
+function mergeSet(ws, r1, c1, r2, c2, val, opts={}) {
+  ws.mergeCells(r1, c1, r2, c2);
+  return setCell(ws, r1, c1, val, opts);
+}
 
-  const rows = [
-    [title],
-    ['사업구분(Tango)', '측량거리(km)', 'Tango(km) 주관로굴착거리', '측량심사거리 검토결과(km)', '', '', '정산금액', '안전관리비', '비고'],
-    ['', '', '', '노출측량(km)', '탐사측량(km)', '소계', '', '', ''],
+const NUM = '#,##0';
+const DIS = '0.000';
+
+// ─── 시트1: 공공측량 갑지 ──────────────────────────────
+function makeGaljiSheet(wb, ym) {
+  const ws = wb.addWorksheet('공공측량 갑지');
+  ws.views = [{showGridLines: false}];
+  ws.columns = [
+    {width:40},{width:14},{width:16},{width:14},{width:14},{width:14},{width:16},{width:14},{width:22}
   ];
 
+  // 행1 제목
+  mergeSet(ws,1,1,1,9, `${ym} 기성준공내역서_도급_SKTNS_수도권지사_측량`,
+    {bold:true,sz:12,color:'FFFFFF',bg:'4F81BD',h:'center',v:'middle'});
+  ws.getRow(1).height = 26;
+
+  // 행2 헤더
+  ws.mergeCells(2,1,3,1); ws.mergeCells(2,2,3,2); ws.mergeCells(2,3,3,3);
+  ws.mergeCells(2,4,2,6);
+  ws.mergeCells(2,7,3,7); ws.mergeCells(2,8,3,8); ws.mergeCells(2,9,3,9);
+
+  const hdrs2 = [
+    [1,'사업구분(Tango)'],[2,'측량거리(km)'],[3,'Tango(km)\n※주관로굴착거리'],
+    [4,'측량심사거리 검토결과(km)'],[7,'정산금액'],[8,'안전관리비'],[9,'비고']
+  ];
+  for (let c=1; c<=9; c++) {
+    setCell(ws,2,c,null,{bold:true,h:'center',v:'middle',bg:'C5D9F1',wrap:true});
+    setCell(ws,3,c,null,{bold:true,h:'center',v:'middle',bg:'C5D9F1'});
+  }
+  hdrs2.forEach(([c,t]) => setCell(ws,2,c,t,{bold:true,h:'center',v:'middle',bg:'C5D9F1',wrap:true}));
+  ws.getRow(2).height = 32;
+
+  // 행3 하위헤더
+  setCell(ws,3,4,'노출측량(km)',{bold:true,h:'center',bg:'FFFF00'});
+  setCell(ws,3,5,'탐사측량(km)',{bold:true,h:'center',bg:'FFFF00'});
+  setCell(ws,3,6,'소계',{bold:true,h:'center',bg:'C5D9F1'});
+
+  // 집계
+  const agg = {};
+  TANGO_LIST.forEach(t => { agg[t] = {dist:0,tango:0,exp:0,prob:0,amt:0}; });
+  projects.forEach(p => {
+    const t = p.tangoType||'';
+    if (!agg[t]) return;
+    agg[t].dist  += (p.exposedKm||0)+(p.probeKm||0);
+    agg[t].tango += p.tangoKm||0;
+    agg[t].exp   += p.exposedKm||0;
+    agg[t].prob  += p.probeKm||0;
+    agg[t].amt   += p.finalCost||0;
+  });
+
+  let row = 4;
   TANGO_LIST.forEach(t => {
     const a = agg[t];
-    rows.push([t, a.dist||'', a.tango||'', a.exposed||'', a.probe||'',
-               (a.exposed+a.probe)||'', a.amount||'', a.safety||'', '']);
+    const has = a.dist > 0;
+    const bg = has ? 'FFFFCC' : null;
+    const o = {h:'center',v:'middle'};
+    setCell(ws,row,1,t,{...o,h:'left',bg});
+    setCell(ws,row,2,has?+a.dist.toFixed(3):null,{...o,bg,numfmt:DIS});
+    setCell(ws,row,3,has?+a.tango.toFixed(3):null,{...o,bg,numfmt:DIS});
+    setCell(ws,row,4,has?+a.exp.toFixed(3):null,{...o,bg,numfmt:DIS});
+    setCell(ws,row,5,has?+a.prob.toFixed(3):null,{...o,bg,numfmt:DIS});
+    setCell(ws,row,6,has?+(a.exp+a.prob).toFixed(3):null,{...o,bg,numfmt:DIS});
+    setCell(ws,row,7,has?a.amt:null,{...o,bg,numfmt:NUM});
+    setCell(ws,row,8,null,{...o,bg});
+    setCell(ws,row,9,null,{...o,bg});
+    ws.getRow(row).height = 18;
+    row++;
   });
-
-  const totDist  = Object.values(agg).reduce((s,a)=>s+a.dist,0);
-  const totTango = Object.values(agg).reduce((s,a)=>s+a.tango,0);
-  const totExp   = Object.values(agg).reduce((s,a)=>s+a.exposed,0);
-  const totProb  = Object.values(agg).reduce((s,a)=>s+a.probe,0);
-  const totAmt   = Object.values(agg).reduce((s,a)=>s+a.amount,0);
-  const totSaf   = Object.values(agg).reduce((s,a)=>s+a.safety,0);
-  rows.push(['합계', totDist, totTango, totExp, totProb, totExp+totProb, totAmt, totSaf, '']);
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [38,12,12,12,12,12,14,14,20].map(w=>({wch:w}));
-  ws['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:8}},
-    {s:{r:1,c:3}, e:{r:1,c:5}},
-    {s:{r:1,c:0}, e:{r:2,c:0}},
-    {s:{r:1,c:1}, e:{r:2,c:1}},
-    {s:{r:1,c:2}, e:{r:2,c:2}},
-    {s:{r:1,c:6}, e:{r:2,c:6}},
-    {s:{r:1,c:7}, e:{r:2,c:7}},
-    {s:{r:1,c:8}, e:{r:2,c:8}},
-  ];
-  return ws;
-}
-
-// ─────────────────────────────────────────────────────
-// 시트2: 세부내역
-// ─────────────────────────────────────────────────────
-function makeDetailSheet() {
-  const rows = [
-    ['', '통신관로 조사 및 측량 세부내역'],
-    ['', '작성', '작성', '작성', '작성', '작성', '작성', '작성', '작성', '작성', '작성', '작성', '작성'],
-    ['', '순번', '구분', '지역', '공공측량명칭', '공사코드', '공사명', '사업구분(Tango)', '측량거리(km)', 'Tango주관로굴착거리(km)', '측량심사거리검토결과(km)', '', '공공측량성과심사비', '정산공종구분', '공사비금액', '비고'],
-    ['', '', '', '', '', '', '', '', '', '', '노출측량', '탐사측량', '', '', '', ''],
-  ];
-
-  projects.forEach((p, i) => {
-    const totalKm = (p.exposedKm||0) + (p.probeKm||0);
-    rows.push([
-      '', i+1, p.gubun||'', p.region||'', p.surveyName||'', p.workCode||'', p.workName||'',
-      p.tangoType||'', totalKm, p.tangoKm||'',
-      p.exposedKm||'', p.probeKm||'', '',
-      p.method==='realtime'?'실시간':'탐사', p.finalCost||0, p.remark||''
-    ]);
-  });
-
-  // 소계
-  const totDist  = projects.reduce((s,p)=>s+(p.exposedKm||0)+(p.probeKm||0),0);
-  const totTango = projects.reduce((s,p)=>s+(p.tangoKm||0),0);
-  const totExp   = projects.reduce((s,p)=>s+(p.exposedKm||0),0);
-  const totProb  = projects.reduce((s,p)=>s+(p.probeKm||0),0);
-  const totAmt   = projects.reduce((s,p)=>s+(p.finalCost||0),0);
-  rows.push(['', '소 계', '', '', '', '', '', '', totDist, totTango, totExp, totProb, 0, '', totAmt, '']);
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [4,6,8,8,28,20,55,30,10,12,12,12,12,12,14,20].map(w=>({wch:w}));
-  ws['!merges'] = [
-    {s:{r:0,c:1}, e:{r:0,c:15}},
-    {s:{r:2,c:10}, e:{r:2,c:11}},
-  ];
-  return ws;
-}
-
-// ─────────────────────────────────────────────────────
-// 시트3: 원가계산서
-// ─────────────────────────────────────────────────────
-function makeCostSheet() {
-  const n = projects.length;
 
   // 합계
-  const tot = {
-    direct_labor:0, indirect_labor:0, labor_total:0, machine_exp:0,
-    accident:0, employment:0, pension:0, health:0, safety:0, elderly:0,
-    exp_total:0, gen_mgmt:0, profit:0, work_cost:0, contract:0,
-    finalCost:0, vat:0, total:0
-  };
-  projects.forEach(p => {
-    Object.keys(tot).forEach(k => { tot[k] += (p[k]||0); });
-  });
+  const td=+Object.values(agg).reduce((s,a)=>s+a.dist,0).toFixed(3);
+  const tt=+Object.values(agg).reduce((s,a)=>s+a.tango,0).toFixed(3);
+  const te=+Object.values(agg).reduce((s,a)=>s+a.exp,0).toFixed(3);
+  const tp=+Object.values(agg).reduce((s,a)=>s+a.prob,0).toFixed(3);
+  const ta=Object.values(agg).reduce((s,a)=>s+a.amt,0);
+  const o={bold:true,h:'center',v:'middle',bg:'BDD7EE'};
+  setCell(ws,row,1,'합계',{...o,h:'center'});
+  setCell(ws,row,2,td,{...o,numfmt:DIS});
+  setCell(ws,row,3,tt,{...o,numfmt:DIS});
+  setCell(ws,row,4,te,{...o,numfmt:DIS});
+  setCell(ws,row,5,tp,{...o,numfmt:DIS});
+  setCell(ws,row,6,+(te+tp).toFixed(3),{...o,numfmt:DIS});
+  setCell(ws,row,7,ta,{...o,numfmt:NUM});
+  setCell(ws,row,8,null,{...o});
+  setCell(ws,row,9,null,{...o});
+  ws.getRow(row).height = 18;
+}
 
-  // 헤더 생성
-  const projHeaders = projects.map((p,i) => [`${i+1}. ${p.workCode||''}`, '', '']);
-  const subHeaders  = projects.map(() => ['선로(Capex)', '선로(Opex)', '계']);
+// ─── 시트2: 원가계산서 ─────────────────────────────────
+function makeCostSheet(wb) {
+  const ws = wb.addWorksheet('원가계산서');
+  ws.views = [{showGridLines: false}];
+  const n = projects.length;
 
-  const hdr1 = ['비목', '', '구분', '구성비', '', '', '선로(Capex)', '선로(Opex)', '계', '비고', '', '',
-                 ...projHeaders.flat()];
-  const hdr2 = ['', '', '', '', '', '', '', '', '', '', '', '',
-                 ...subHeaders.flat()];
+  const cols = [{width:22},{width:10},{width:24},{width:30},{width:8},{width:6},
+                {width:14},{width:14},{width:14},{width:30},{width:8},{width:8}];
+  for (let i=0;i<n*3;i++) cols.push({width:14});
+  ws.columns = cols;
 
-  // 항목 정의
-  const costRows = [
-    ['순공사원가', '재료비', '(1)직 접 재 료 비', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '(2)간 접 재 료 비', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '소          계', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '노무비', '(3)직 접 노 무 비', '', '', '', tot.direct_labor, 0, tot.direct_labor, '', '', '', 'direct_labor'],
-    ['', '', '(3-1)도서할증', '* 도서 : 직접노무비의 20%', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '(3-2)도심지할증', '* 도심지 : 직접노무비의 20%', '', '', 0, 0, 0, '관로공사만 적용', '', '', 'zero'],
-    ['', '', '(3-3)KTX 작업효율성할증', '* KTX/지하철 : 직접노무비의 100%', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '(3-3)휴일 작업효율성할증', '* 휴일 : 직접노무비의 50%', '', '', 0, 0, 0, '긴급복구공사만 적용', '', '', 'zero'],
-    ['', '', '(4)간 접 노 무 비', '직접노무비의 10% 이내', '', '', tot.indirect_labor, 0, tot.indirect_labor, '', '', '', 'indirect_labor'],
-    ['', '', '소          계', '', '', '', tot.labor_total, 0, tot.labor_total, '', '', '', 'labor_total'],
-    ['', '경    비', '가    설    비', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '지 급 임 차 료', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '산 재 보 험 료', '노무비의 3.56%', '', '', tot.accident, 0, tot.accident, '', '', '', 'accident'],
-    ['', '', '고 용 보 험 료', '노무비의 1.01%', '', '', tot.employment, 0, tot.employment, '', '', '', 'employment'],
-    ['', '', '국민연금보험료', '직접노무비의 4.75%', '', '', tot.pension, 0, tot.pension, '', '', '', 'pension'],
-    ['', '', '국민건강보험료', '직접노무비의 3.595%', '', '', tot.health, 0, tot.health, '', '', '', 'health'],
-    ['', '', '안 전 관 리 비', '재료비+직접노무비의 1.78%', '', '', tot.safety, 0, tot.safety, '', '', '', 'safety'],
-    ['', '', '노인장기요양보험', '건강보험료의 13.14%', '', '', tot.elderly, 0, tot.elderly, '', '', '', 'elderly'],
-    ['', '', '퇴직공제부금비', '직접노무비의(100억이상시)', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '기타  경비', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['', '', '기계  경비', '', '', '', tot.machine_exp, 0, tot.machine_exp, '', '', '', 'machine_exp'],
-    ['', '', '(5)소          계', '', '', '', tot.exp_total, 0, tot.exp_total, '', '', '', 'exp_total'],
-    ['   (6) 일    반     관    리    비', '', '', '재료비+노무비+경비의 3% 이내', '', '', tot.gen_mgmt, 0, tot.gen_mgmt, '', '', '', 'gen_mgmt'],
-    ['   (7) 이                         윤', '', '', '노무비+경비+일관비의 13.5% 이내', '', '', tot.profit, 0, tot.profit, '', '', '', 'profit'],
-    ['   (8) 공           사           비', '', '', '', '', '', tot.work_cost, 0, tot.work_cost, '', '', '', 'work_cost'],
-    ['   (9) 낙           찰           가', '', '', '74.9%', '', '', tot.contract, 0, tot.contract, '', '', '', 'contract'],
-    ['   (10) 사  급  형    재   료   비', '', '', '광 케이블, 접속함체 등 지정지입 12종', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['   (11) 폐  기  물    처   리   비', '', '', '', '', '', 0, 0, 0, '실비정산', '', '', 'zero'],
-    ['   (12) 인    허    가     비    용', '', '', '토지관련인.허가 용역비(점용,전용,허가)', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['   (13) 설계/치국    용   역   비', '', '', '치국 및 토목(관로) 설계 용역비', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['   (14) 현장사무실,  창고임대료', '', '', '', '', '', 0, 0, 0, '', '', '', 'zero'],
-    ['   (15) 견    적    공     사    비', '', '', '견적공사비', '', '', 0, 0, 0, '공공측량 성과심사비', '', '', 'zero'],
-    ['   (16) 소 규 모 할 증', '', '', '', '', '', 0, 0, 0, '굴착면적 36m2이하 낙찰가의 30% 적용', '', '', 'zero'],
-    ['   (17) 공    사    비    합    계', '', '', '', '', '', tot.finalCost, 0, tot.finalCost, '', '', '', 'finalCost'],
-    ['   (18) 부    가     가    치    세', '', '', '10%', '', '', tot.vat, 0, tot.vat, '', '', '', 'vat'],
-    ['   (19) 총                         계', '', '', '', '', '', tot.total, 0, tot.total, '', '', '', 'total'],
-  ];
+  // 합계
+  const tot = {};
+  const keys = ['directLabor','indirectLabor','laborTotal','machineExp',
+                'accident','employment','pension','health','safety','elderly',
+                'expTotal','generalMgmt','profit','workCost','finalCost'];
+  keys.forEach(k => { tot[k] = projects.reduce((s,p)=>s+(p[k]||0),0); });
+  tot.vat   = projects.reduce((s,p)=>s+Math.round((p.finalCost||0)*0.1),0);
+  tot.total = tot.finalCost + tot.vat;
 
-  const keyMap = {
-    direct_labor:'directLabor', indirect_labor:'indirectLabor',
-    labor_total:'laborTotal', machine_exp:'machineExp',
-    accident:'accident', employment:'employment', pension:'pension',
-    health:'health', safety:'safety', elderly:'elderly',
-    exp_total:'expTotal', gen_mgmt:'generalMgmt', profit:'profit',
-    work_cost:'workCost', contract:'finalCost', finalCost:'finalCost',
-    vat:'withVat', total:'totalWithVat',
-  };
+  // 제목
+  ws.getRow(1).height = 18;
+  setCell(ws,1,1,'1. 공사정산내역',{bold:true,sz:11,border:false});
+  setCell(ws,2,1,'   1-1. 원가계산서(총괄)',{bold:true,sz:10,border:false});
+  setCell(ws,4,1,'■ 공 사 명 : ',{bold:true,sz:10,border:false});
 
-  const rows = [
-    ['1. 공사정산내역'],
-    ['   1-1. 원가계산서(총괄)'],
-    [],
-    ['■ 공 사 명 : '],
-    hdr1, hdr2,
-  ];
-
-  costRows.forEach(row => {
-    const key = row[row.length-1];
-    const baseRow = row.slice(0, -1);
-    // 건별 값 추가
-    projects.forEach(p => {
-      let val = 0;
-      if (key === 'zero') val = 0;
-      else if (key === 'direct_labor') val = p.directLabor||0;
-      else if (key === 'indirect_labor') val = p.indirectLabor||0;
-      else if (key === 'labor_total') val = p.laborTotal||0;
-      else if (key === 'machine_exp') val = p.machineExp||0;
-      else if (key === 'accident') val = p.accident||0;
-      else if (key === 'employment') val = p.employment||0;
-      else if (key === 'pension') val = p.pension||0;
-      else if (key === 'health') val = p.health||0;
-      else if (key === 'safety') val = p.safety||0;
-      else if (key === 'elderly') val = p.elderly||0;
-      else if (key === 'exp_total') val = p.expTotal||0;
-      else if (key === 'gen_mgmt') val = p.generalMgmt||0;
-      else if (key === 'profit') val = p.profit||0;
-      else if (key === 'work_cost') val = p.workCost||0;
-      else if (key === 'contract') val = p.finalCost||0;
-      else if (key === 'finalCost') val = p.finalCost||0;
-      else if (key === 'vat') val = Math.round((p.finalCost||0)*0.1);
-      else if (key === 'total') val = (p.finalCost||0) + Math.round((p.finalCost||0)*0.1);
-      baseRow.push(val, 0, val);
-    });
-    rows.push(baseRow);
-  });
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const colWidths = [22, 10, 22, 28, 8, 6, 13, 13, 13, 22, 8, 8,
-                     ...Array(n*3).fill(13)];
-  ws['!cols'] = colWidths.map(w=>({wch:w}));
-
-  // 건별 헤더 병합
-  const merges = [
-    {s:{r:4,c:0}, e:{r:4,c:1}},
-    {s:{r:4,c:3}, e:{r:4,c:5}},
-  ];
+  // 행5 헤더
+  const H = 'C5D9F1';
+  ws.mergeCells(5,1,5,2); setCell(ws,5,1,'비      목',{bold:true,h:'center',bg:H});
+  setCell(ws,5,2,null,{bg:H});
+  setCell(ws,5,3,'구        분',{bold:true,h:'center',bg:H});
+  ws.mergeCells(5,4,5,6); setCell(ws,5,4,'구   성   비',{bold:true,h:'center',bg:H});
+  [5,6].forEach(c=>setCell(ws,5,c,null,{bg:H}));
+  ws.mergeCells(5,7,5,9); setCell(ws,5,7,'공사비',{bold:true,h:'center',bg:H});
+  [8,9].forEach(c=>setCell(ws,5,c,null,{bg:H}));
+  ws.mergeCells(5,10,5,12); setCell(ws,5,10,'비  고',{bold:true,h:'center',bg:H});
+  [11,12].forEach(c=>setCell(ws,5,c,null,{bg:H}));
   projects.forEach((p,i) => {
-    merges.push({s:{r:4,c:12+i*3}, e:{r:4,c:12+i*3+2}});
+    const c=13+i*3;
+    ws.mergeCells(5,c,5,c+2);
+    setCell(ws,5,c,`${i+1}. ${p.workCode||''}`,{bold:true,h:'center',bg:H});
+    [1,2].forEach(o=>setCell(ws,5,c+o,null,{bg:H}));
   });
-  ws['!merges'] = merges;
-  return ws;
-}
+  ws.getRow(5).height = 24;
 
-
-// ============================================================
-// 유틸리티
-// ============================================================
-function deleteProject(id) {
-  if (!confirm('이 사업을 삭제하시겠습니까?')) return;
-  projects = projects.filter(p => p.id !== id);
-  saveProjects();
-  renderList();
-  updateBadge();
-  showToast('🗑️ 삭제되었습니다');
-}
-
-function resetForm() {
-  ['gubun','region','surveyName','workCode','workName','tangoType','remark'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el.tagName === 'SELECT') el.selectedIndex = 0;
-    else el.value = '';
+  // 행6
+  const S = 'D8E4BC';
+  for(let c=1;c<=12+n*3;c++) setCell(ws,6,c,null,{bg:S});
+  [['선로(Capex)',7],['선로(Opex)',8],['계',9]].forEach(([t,c])=>setCell(ws,6,c,t,{bold:true,h:'center',bg:S}));
+  projects.forEach((_,i)=>{
+    const c=13+i*3;
+    ['선로(Capex)','선로(Opex)','계'].forEach((t,o)=>setCell(ws,6,c+o,t,{bold:true,h:'center',bg:S}));
   });
-  document.getElementById('露出距離').value = '';
-  document.getElementById('탐사距離').value = '';
-  document.getElementById('totalDist').textContent = '0.000 km';
-  document.getElementById('methodBadge').textContent = '미입력';
-  document.getElementById('methodBadge').className = 'method-badge empty';
-  document.getElementById('calcResult').style.display = 'none';
+  ws.getRow(6).height = 16;
+
+  // 항목
+  const ROWS = [
+    [7, '순공사원가','재료비','(1)직 접 재 료 비','',null,'','FFFFFF',false],
+    [8, '','','(2)간 접 재 료 비','',null,'','FFFFFF',false],
+    [9, '','','소          계','',null,'','EBF1DE',true],
+    [10,'','노무비','(3)직 접 노 무 비','','directLabor','','FFFFFF',false],
+    [11,'','','(3-1)도서할증','* 도서 : 직접노무비의 20%',null,'','FFFFFF',false],
+    [12,'','','(3-2)도심지할증','* 도심지 : 직접노무비의 20%',null,'관로공사만 적용','FFFFFF',false],
+    [13,'','','(3-3)KTX 작업효율성할증','* KTX/지하철 : 직접노무비의 100%',null,'','FFFFFF',false],
+    [14,'','','(3-3)휴일 작업효율성할증','* 휴일 : 직접노무비의 50%',null,'긴급복구공사만 적용','FFFFFF',false],
+    [15,'','','(4)간 접 노 무 비','직접노무비의 10% 이내','indirectLabor','','FFFFFF',false],
+    [16,'','','소          계','','laborTotal','','EBF1DE',true],
+    [17,'','경    비','가    설    비','',null,'','FFFFFF',false],
+    [18,'','','지 급 임 차 료','',null,'','FFFFFF',false],
+    [19,'','','산 재 보 험 료','노무비의 3.56%','accident','','FFFFFF',false],
+    [20,'','','고 용 보 험 료','노무비의 1.01%','employment','','FFFFFF',false],
+    [21,'','','국민연금보험료','직접노무비의 4.75%','pension','','FFFFFF',false],
+    [22,'','','국민건강보험료','직접노무비의 3.595%','health','','FFFFFF',false],
+    [23,'','','안 전 관 리 비','재료비+직접노무비의 1.78%','safety','','FFFFFF',false],
+    [24,'','','노인장기요양보험','건강보험료의 13.14%','elderly','','FFFFFF',false],
+    [25,'','','퇴직공제부금비','직접노무비의(100억이상시)',null,'','FFFFFF',false],
+    [26,'','','기타  경비','',null,'','FFFFFF',false],
+    [27,'','','기계  경비','','machineExp','','FFFFFF',false],
+    [28,'','','(5)소          계','','expTotal','','EBF1DE',true],
+    [29,'(6) 일    반     관    리    비','','','재료비+노무비+경비의 3% 이내','generalMgmt','','FFFFC7',false],
+    [30,'(7) 이                         윤','','','노무비+경비+일관비의 13.5% 이내','profit','','FFFFC7',false],
+    [31,'(8) 공           사           비','','','','workCost','','EBF1DE',true],
+    [32,'(9) 낙           찰           가','','','74.9%','finalCost','','EBF1DE',true],
+    [33,'(10) 사  급  형    재   료   비','','','광 케이블, 접속함체 등 지정지입 12종',null,'','FFFFFF',false],
+    [34,'(11) 폐  기  물    처   리   비','','','',null,'실비정산','FFFFFF',false],
+    [35,'(12) 인    허    가     비    용','','','토지관련인.허가 용역비(점용,전용,허가)',null,'','FFFFFF',false],
+    [36,'(13) 설계/치국    용   역   비','','','치국 및 토목(관로) 설계 용역비',null,'','FFFFFF',false],
+    [37,'(14) 현장사무실,  창고임대료','','','',null,'','FFFFFF',false],
+    [38,'(15) 견    적    공     사    비','','','견적공사비',null,'공공측량 성과심사비','FFFFFF',false],
+    [39,'(16) 소 규 모 할 증','','','',null,'굴착면적 36m2이하 낙찰가의 30% 적용','FFFFFF',false],
+    [40,'(17) 공    사    비    합    계','','','','finalCost','','BDD7EE',true],
+    [41,'(18) 부    가     가    치    세','','','10%','vat','','FFFFFF',false],
+    [42,'(19) 총                         계','','','','total','','BDD7EE',true],
+  ];
+
+  ROWS.forEach(([r,bimok,bumon,gubun,ratio,key,note,bg,bold]) => {
+    const tv = key ? (key==='vat'?tot.vat:key==='total'?tot.total:(tot[key]||0)) : null;
+
+    if (r <= 28) {
+      setCell(ws,r,1,bimok||null,{bold,bg});
+      setCell(ws,r,2,bumon||null,{bold,h:'center',bg});
+      setCell(ws,r,3,gubun||null,{bold,bg});
+    } else {
+      ws.mergeCells(r,1,r,3);
+      setCell(ws,r,1,`   ${bimok}`,{bold,bg});
+      [2,3].forEach(c=>setCell(ws,r,c,null,{bold,bg}));
+    }
+    ws.mergeCells(r,4,r,6);
+    setCell(ws,r,4,ratio||null,{bg}); [5,6].forEach(c=>setCell(ws,r,c,null,{bg}));
+    setCell(ws,r,7,tv||null,{bold,h:'right',bg,numfmt:NUM});
+    setCell(ws,r,8,tv?0:null,{h:'right',bg,numfmt:NUM});
+    setCell(ws,r,9,tv||null,{bold,h:'right',bg,numfmt:NUM});
+    ws.mergeCells(r,10,r,12);
+    setCell(ws,r,10,note||null,{bg}); [11,12].forEach(c=>setCell(ws,r,c,null,{bg}));
+
+    projects.forEach((p,i) => {
+      const c = 13+i*3;
+      let pv = null;
+      if (key) {
+        if (key==='vat') pv = Math.round((p.finalCost||0)*0.1);
+        else if (key==='total') pv = (p.finalCost||0)+Math.round((p.finalCost||0)*0.1);
+        else pv = p[key]||0;
+      }
+      setCell(ws,r,c,pv||null,{bold,h:'right',bg,numfmt:NUM});
+      setCell(ws,r,c+1,pv?0:null,{h:'right',bg,numfmt:NUM});
+      setCell(ws,r,c+2,pv||null,{bold,h:'right',bg,numfmt:NUM});
+    });
+    ws.getRow(r).height = 15;
+  });
 }
 
-function saveProjects() {
-  try { localStorage.setItem('underground_projects', JSON.stringify(projects)); } catch(e) {}
-}
+// ─── 시트3: 세부내역 ───────────────────────────────────
+function makeDetailSheet(wb, ym) {
+  const ws = wb.addWorksheet('세부내역');
+  ws.views = [{showGridLines: false}];
+  ws.columns = [
+    {width:4},{width:6},{width:8},{width:8},{width:28},{width:20},
+    {width:55},{width:30},{width:10},{width:12},{width:12},{width:12},
+    {width:12},{width:12},{width:14},{width:20}
+  ];
 
-function updateBadge() {
-  document.getElementById('projectCount').textContent = `사업 ${projects.length}건`;
-}
+  // 행1 제목
+  ws.mergeCells(1,2,1,16);
+  setCell(ws,1,2,'통신관로 조사 및 측량 세부내역',{bold:true,sz:12,h:'center',border:false});
+  ws.getRow(1).height = 22;
 
-function fmt(n) {
-  return Math.round(n).toLocaleString('ko-KR');
-}
+  // 행2 작성
+  const actCols = [3,4,5,6,7,8,10,11,12,13,15];
+  for(let c=2;c<=16;c++){
+    if(actCols.includes(c)){
+      const cell=ws.getCell(2,c);
+      cell.value='작성';
+      cell.font={bold:true,size:8,color:{argb:'FFFF0000'},name:'맑은 고딕'};
+      cell.fill=bgFill('FFFF00');
+      cell.alignment=aln('center');
+      cell.border=ALL_THIN;
+    } else {
+      setCell(ws,2,c,null,{bg:'FFFF00'});
+    }
+  }
+  ws.getRow(2).height = 14;
 
-function showToast(msg, type='success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.borderColor = type === 'error' ? 'var(--red)' : 'var(--green)';
-  t.style.color = type === 'error' ? 'var(--red)' : 'var(--green)';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+  // 행3 헤더
+  ws.mergeCells(3,11,3,12);
+  const hdrs3 = {
+    2:['순번','C5D9F1'], 3:['구분','C5D9F1'], 4:['지역','C5D9F1'],
+    5:['공공측량명칭','C5D9F1'], 6:['공사코드','C5D9F1'], 7:['공사명','C5D9F1'],
+    8:['사업구분(Tango)','C5D9F1'], 9:['측량거리(km)','C5D9F1'],
+    10:['Tango 주관로 굴착거리(km)','FFC000'],
+    11:['측량심사거리 검토결과(km)','FFFF00'],
+    13:['공공측량 성과심사비','92D050'],
+    14:['정산공종 구분','FFFF00'],
+    15:['원가계산서 공사비금액','92D050'],
+    16:['비고','C5D9F1'],
+  };
+  for(let c=2;c<=16;c++){
+    if(hdrs3[c]){
+      const [txt,bg]=hdrs3[c];
+      setCell(ws,3,c,txt,{bold:true,h:'center',v:'middle',wrap:true,bg});
+    } else if(c!==12){
+      setCell(ws,3,c,null,{bg:'C5D9F1'});
+    } else {
+      setCell(ws,3,c,null,{bg:'FFFF00'});
+    }
+  }
+  ws.getRow(3).height = 42;
+
+  // 행4 노출/탐사
+  for(let c=2;c<=16;c++){
+    const bg = [11,12].includes(c)?'FFFF00':'C5D9F1';
+    setCell(ws,4,c,null,{bg});
+  }
+  setCell(ws,4,11,'노출측량',{bold:true,h:'center',bg:'FFFF00'});
+  setCell(ws,4,12,'탐사측량',{bold:true,h:'center',bg:'FFFF00'});
+  ws.getRow(4).height = 16;
+
+  // 데이터 행
+  let row = 5;
+  projects.forEach((p,i) => {
+    const totalKm = +((p.exposedKm||0)+(p.probeKm||0)).toFixed(3);
+    const ms = p.method==='realtime'?'실시간':'탐사';
+    const ydata = [
+      [2,i+1,'center',null,false,null],
+      [3,p.gubun||'','center',null,false,'FFFF00'],
+      [4,p.region||'','center',null,false,'FFFF00'],
+      [5,p.surveyName||'','left',null,false,'FFFF00'],
+      [6,p.workCode||'','left',null,false,'FFFF00'],
+      [7,p.workName||'','left',null,true,'FFFF00'],
+      [8,p.tangoType||'','left',null,false,'FFFF00'],
+      [9,totalKm,'center',DIS,false,null],
+      [10,p.tangoKm||null,'center',DIS,false,'FFFF00'],
+      [11,p.exposedKm||null,'center',DIS,false,'FFFF00'],
+      [12,p.probeKm||null,'center',DIS,false,'FFFF00'],
+      [13,null,'center',NUM,false,null],
+      [14,ms,'center',null,false,'FFFF00'],
+      [15,p.finalCost||0,'right',NUM,false,'E2EFDA'],
+      [16,p.remark||'','left',null,false,null],
+    ];
+    setCell(ws,row,1,null);
+    ydata.forEach(([c,val,h,nf,wp,bg])=>{
+      setCell(ws,row,c,val,{h,wrap:wp,numfmt:nf,bg:bg||null});
+    });
+    ws.getRow(row).height = 28;
+    row++;
+  });
+
+  // 빈행
+  while(row <= Math.max(11, 5+projects.length+2)){
+    setCell(ws,row,1,null);
+    for(let c=2;c<=16;c++) setCell(ws,row,c,null);
+    ws.getRow(row).height = 18;
+    row++;
+  }
+
+  // 소계
+  const totD=+projects.reduce((s,p)=>s+(p.exposedKm||0)+(p.probeKm||0),0).toFixed(3);
+  const totT=+projects.reduce((s,p)=>s+(p.tangoKm||0),0).toFixed(3);
+  const totE=+projects.reduce((s,p)=>s+(p.exposedKm||0),0).toFixed(3);
+  const totP=+projects.reduce((s,p)=>s+(p.probeKm||0),0).toFixed(3);
+  const totA=projects.reduce((s,p)=>s+(p.finalCost||0),0);
+
+  setCell(ws,row,1,null,{bg:'BDD7EE'});
+  setCell(ws,row,2,'소 계',{bold:true,h:'center',bg:'BDD7EE'});
+  [3,4,5,6,7,8].forEach(c=>setCell(ws,row,c,null,{bg:'BDD7EE'}));
+  setCell(ws,row,9,totD,{bold:true,h:'center',bg:'BDD7EE',numfmt:DIS});
+  setCell(ws,row,10,totT,{bold:true,h:'center',bg:'BDD7EE',numfmt:DIS});
+  setCell(ws,row,11,totE,{bold:true,h:'center',bg:'BDD7EE',numfmt:DIS});
+  setCell(ws,row,12,totP,{bold:true,h:'center',bg:'BDD7EE',numfmt:DIS});
+  setCell(ws,row,13,0,{bold:true,h:'center',bg:'BDD7EE',numfmt:NUM});
+  setCell(ws,row,14,null,{bg:'BDD7EE'});
+  setCell(ws,row,15,totA,{bold:true,h:'right',bg:'BDD7EE',numfmt:NUM});
+  setCell(ws,row,16,null,{bg:'BDD7EE'});
+  ws.getRow(row).height = 18;
 }
 
 
