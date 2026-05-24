@@ -822,58 +822,66 @@ function xlsGalji(wb, ym) {
   ws.views = [{showGridLines: false}];
   ws.columns = [{width:40},{width:14},{width:16},{width:14},{width:14},{width:14},{width:16},{width:14},{width:22}];
 
-  // 행 높이
   ws.getRow(1).height = 22;
   ws.getRow(2).height = 32;
   ws.getRow(3).height = 18;
   for (let r=4; r<=13; r++) ws.getRow(r).height = 18;
 
-  // 색상 상수 (목표 파일에서 정확히 읽은 값)
-  const GRN  = '92D050'; // theme:6 tint:0.6 근사값 - 헤더 초록
-  const PINK = 'FF99FF'; // 측량심사거리 검토결과 헤더 (D2)
-  const YEL  = 'FFFF00'; // 노출측량 (D3)
-  const GREY = 'BFBFBF'; // 정산금액/안전관리비/합계행
+  // 목표파일에서 정확히 읽은 색상값
+  const GRN  = '92D050'; // theme:6 tint:0.6 근사 - 헤더 초록
+  const LYEL = 'FFFFCC'; // 측량심사거리 D2 (FFFFCCFF)
+  const YEL  = 'FFFF00'; // 노출측량 D3 (FFFFFF00)
+  const LGRY = 'D9D9D9'; // theme:0 tint:-0.15 = 정산금액/합계 연회색
 
-  // ── 행1: 제목 (배경없음 + 검정글씨)
+  // ── 행1: 배경없음 + 검정글씨 + bold + sz12 + 왼쪽정렬
   try { ws.mergeCells(1,1,1,9); } catch(e) {}
-  const t1 = ws.getCell(1,1);
-  t1.value = ym + ' 기성준공내역서_도급_SKTNS_수도권지사_측량';
-  t1.font = {bold:true, size:12, color:{argb:'FF000000'}, name:'맑은 고딕'};
-  t1.alignment = aln('center','middle');
-  t1.border = ALL_THIN;
-  // 배경 없음 (명시적으로 none 설정)
-  t1.fill = {type:'none'};
+  const r1 = ws.getCell(1,1);
+  r1.value = ym + ' 기성준공내역서_도급_SKTNS_수도권지사_측량';
+  r1.font = {bold:true, size:12, color:{argb:'FF000000'}, name:'맑은 고딕'};
+  r1.alignment = {horizontal:'left', vertical:'middle'};
+  r1.fill = {type:'none'};
+  r1.border = ALL_THIN;
 
-  // ── 행2: 헤더 병합
+  // ── 행2,3 병합
   try { ws.mergeCells(2,1,3,1); } catch(e) {}
   try { ws.mergeCells(2,2,3,2); } catch(e) {}
   try { ws.mergeCells(2,3,3,3); } catch(e) {}
-  try { ws.mergeCells(2,4,2,6); } catch(e) {}  // 측량심사거리 병합
+  try { ws.mergeCells(2,4,2,6); } catch(e) {}
   try { ws.mergeCells(2,7,3,7); } catch(e) {}
   try { ws.mergeCells(2,8,3,8); } catch(e) {}
   try { ws.mergeCells(2,9,3,9); } catch(e) {}
 
-  // 행2 셀별 정확한 색상 적용
-  SC(ws,2,1,'사업구분(Tango)',    {bold:true,h:'center',bg:GRN,wrap:true});
-  SC(ws,2,2,'측량거리(km)',        {bold:true,h:'center',bg:GRN,wrap:true});
-  SC(ws,2,3,'Tango(km) 주관로굴착거리', {bold:true,h:'center',bg:GRN,wrap:true});
-  SC(ws,2,4,'측량심사거리 검토결과(km)', {bold:true,h:'center',bg:PINK,wrap:true}); // PINK
-  SC(ws,2,5,null, {bg:PINK});  // 병합셀 빈칸
-  SC(ws,2,6,null, {bg:PINK});  // 병합셀 빈칸
-  SC(ws,2,7,'정산금액',    {bold:true,h:'center',bg:GRN});
-  SC(ws,2,8,'안전관리비',  {bold:true,h:'center',bg:GRN});
-  SC(ws,2,9,'비고',        {bold:true,h:'center',bg:GRN});
+  // 헤더 셀 스타일 함수
+  function hdr(r, c, val, bg) {
+    const cell = ws.getCell(r, c);
+    if (val !== null) cell.value = val;
+    cell.font = {bold:true, size:9, name:'맑은 고딕'};
+    cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+    cell.fill = bg ? bgFill(bg) : {type:'none'};
+    cell.border = ALL_THIN;
+  }
 
-  // ── 행3: 하위 헤더
-  SC(ws,3,1,null, {bg:GRN});
-  SC(ws,3,2,null, {bg:GRN});
-  SC(ws,3,3,null, {bg:GRN});
-  SC(ws,3,4,'노출측량(km)', {bold:true,h:'center',bg:YEL});  // 진노란
-  SC(ws,3,5,'탐사측량(km)', {bold:true,h:'center',bg:GRN});  // 초록
-  SC(ws,3,6,'소계',          {bold:true,h:'center',bg:GRN});  // 초록
-  SC(ws,3,7,null, {bg:GRN});
-  SC(ws,3,8,null, {bg:GRN});
-  SC(ws,3,9,null, {bg:GRN});
+  // ── 행2: 헤더 (정확한 색상)
+  hdr(2,1,'사업구분(Tango)', GRN);
+  hdr(2,2,'측량거리(km)',     GRN);
+  hdr(2,3,'Tango(km) 주관로굴착거리', GRN);
+  hdr(2,4,'측량심사거리 검토결과(km)', LYEL); // 연노란
+  hdr(2,5,null, LYEL);
+  hdr(2,6,null, LYEL);
+  hdr(2,7,'정산금액',   GRN);
+  hdr(2,8,'안전관리비', GRN);
+  hdr(2,9,'비고',       GRN);
+
+  // ── 행3: 하위헤더
+  hdr(3,1,null, GRN);
+  hdr(3,2,null, GRN);
+  hdr(3,3,null, GRN);
+  hdr(3,4,'노출측량(km)', YEL);  // 진노란
+  hdr(3,5,'탐사측량(km)', GRN);
+  hdr(3,6,'소계',          GRN);
+  hdr(3,7,null, GRN);
+  hdr(3,8,null, GRN);
+  hdr(3,9,null, GRN);
 
   // ── 집계
   const agg = {};
@@ -881,109 +889,104 @@ function xlsGalji(wb, ym) {
   projects.forEach(p => {
     const t = p.tangoType || '';
     if (!agg[t]) return;
-    agg[t].dist  += (p.exposedKm||0) + (p.probeKm||0);
-    agg[t].tango += p.tangoKm || 0;
-    agg[t].exp   += p.exposedKm || 0;
-    agg[t].prob  += p.probeKm || 0;
-    agg[t].amt   += p.finalCost || 0;
+    agg[t].dist  += (p.exposedKm||0)+(p.probeKm||0);
+    agg[t].tango += p.tangoKm||0;
+    agg[t].exp   += p.exposedKm||0;
+    agg[t].prob  += p.probeKm||0;
+    agg[t].amt   += p.finalCost||0;
   });
 
-  // SUMIF 수식 생성 함수 (원본과 동일)
+  // SUMIF 수식
   function sumif(detCol, galRow) {
     return "SUMIF(세부내역!$H$5:$H$23,'공공측량 갑지'!A" + galRow + ",세부내역!$" + detCol + "$5:$" + detCol + "$23)";
   }
 
-  // ── 행4~11: 사업구분별 데이터
+  // ── 행4~11: 데이터행
   let row = 4;
   TANGO_LIST.forEach((t) => {
     const a = agg[t];
     const r = row;
 
-    // A열: 배경없음 + bold + 왼쪽정렬
-    const cellA = ws.getCell(r,1);
-    cellA.value = t;
-    cellA.font = {bold:true, size:9, name:'맑은 고딕'};
-    cellA.alignment = aln('left','middle');
-    cellA.fill = {type:'none'};
-    cellA.border = ALL_THIN;
+    // A열: 배경없음 + bold + 왼쪽 + sz9
+    const cA = ws.getCell(r,1);
+    cA.value = t;
+    cA.font = {bold:true, size:9, name:'맑은 고딕'};
+    cA.alignment = {horizontal:'left', vertical:'middle'};
+    cA.fill = {type:'none'};
+    cA.border = ALL_THIN;
 
-    // B~F열: SUMIF 수식, 배경없음
-    const bCols = [
+    // B~F열: 배경없음 + bold아님 + 가운데 + sz9 + SUMIF수식
+    [
       [2, sumif('I',r), a.dist],
       [3, sumif('J',r), a.tango],
       [4, sumif('K',r), a.exp],
       [5, sumif('L',r), a.prob],
       [6, 'SUM(D'+r+':E'+r+')', a.exp+a.prob],
-    ];
-    bCols.forEach(([c, formula, result]) => {
+    ].forEach(([c, formula, result]) => {
       const cell = ws.getCell(r,c);
       cell.value = {formula: formula, result: +result.toFixed(3)};
       cell.numFmt = '0.000';
-      cell.font = {size:9, name:'맑은 고딕'};
-      cell.alignment = aln('center','middle');
+      cell.font = {bold:false, size:9, name:'맑은 고딕'};
+      cell.alignment = {horizontal:'center', vertical:'middle'};
       cell.fill = {type:'none'};
       cell.border = ALL_THIN;
     });
 
-    // G열: 정산금액 SUMIF + 회색배경
-    const cellG = ws.getCell(r,7);
-    cellG.value = {formula: sumif('O',r), result: a.amt||0};
-    cellG.numFmt = '#,##0';
-    cellG.font = {size:9, name:'맑은 고딕'};
-    cellG.alignment = aln('right','middle');
-    cellG.fill = bgFill(GREY);
-    cellG.border = ALL_THIN;
+    // G열: SUMIF + 연회색(D9D9D9) + 오른쪽 + bold아님
+    const cG = ws.getCell(r,7);
+    cG.value = {formula: sumif('O',r), result: a.amt||0};
+    cG.numFmt = '#,##0';
+    cG.font = {bold:false, size:9, name:'맑은 고딕'};
+    cG.alignment = {horizontal:'right', vertical:'middle'};
+    cG.fill = bgFill(LGRY);
+    cG.border = ALL_THIN;
 
-    // H열: 안전관리비 회색배경
-    const cellH = ws.getCell(r,8);
-    cellH.fill = bgFill(GREY);
-    cellH.border = ALL_THIN;
+    // H열: 연회색 + bold아님
+    const cH = ws.getCell(r,8);
+    cH.fill = bgFill(LGRY);
+    cH.font = {bold:false, size:9, name:'맑은 고딕'};
+    cH.border = ALL_THIN;
 
-    // I열: 비고
+    // I열
     ws.getCell(r,9).border = ALL_THIN;
-
     ws.getRow(r).height = 18;
     row++;
   });
 
-  // ── 합계행: 회색배경 + SUM 수식
+  // ── 합계행: 연회색(D9D9D9) + bold + sz9
   const totR = row;
-  const endR = totR - 1;
+  const endR = totR-1;
 
-  // A열
-  const cellTotA = ws.getCell(totR,1);
-  cellTotA.value = '합계';
-  cellTotA.font = {bold:true, size:9, name:'맑은 고딕'};
-  cellTotA.alignment = aln('center','middle');
-  cellTotA.fill = bgFill(GREY);
-  cellTotA.border = ALL_THIN;
+  const cTA = ws.getCell(totR,1);
+  cTA.value = '합계';
+  cTA.font = {bold:true, size:9, name:'맑은 고딕'};
+  cTA.alignment = {horizontal:'center', vertical:'middle'};
+  cTA.fill = bgFill(LGRY);
+  cTA.border = ALL_THIN;
 
-  // B~F열
-  ['B','C','D','E','F'].forEach((col, i) => {
+  ['B','C','D','E','F'].forEach((col,i) => {
     const c = i+2;
     const cell = ws.getCell(totR,c);
-    cell.value = {formula: 'SUM('+col+'4:'+col+endR+')', result:0};
+    cell.value = {formula:'SUM('+col+'4:'+col+endR+')', result:0};
     cell.numFmt = '0.000';
     cell.font = {bold:true, size:9, name:'맑은 고딕'};
-    cell.alignment = aln('center','middle');
-    cell.fill = bgFill(GREY);
+    cell.alignment = {horizontal:'center', vertical:'middle'};
+    cell.fill = bgFill(LGRY);
     cell.border = ALL_THIN;
   });
 
-  // G열
-  const cellTotG = ws.getCell(totR,7);
-  cellTotG.value = {formula: 'SUM(G4:G'+endR+')', result:0};
-  cellTotG.numFmt = '#,##0';
-  cellTotG.font = {bold:true, size:9, name:'맑은 고딕'};
-  cellTotG.alignment = aln('right','middle');
-  cellTotG.fill = bgFill(GREY);
-  cellTotG.border = ALL_THIN;
+  const cTG = ws.getCell(totR,7);
+  cTG.value = {formula:'SUM(G4:G'+endR+')', result:0};
+  cTG.numFmt = '#,##0';
+  cTG.font = {bold:true, size:9, name:'맑은 고딕'};
+  cTG.alignment = {horizontal:'right', vertical:'middle'};
+  cTG.fill = bgFill(LGRY);
+  cTG.border = ALL_THIN;
 
-  // H, I열
-  const cellTotH = ws.getCell(totR,8);
-  cellTotH.fill = bgFill(GREY);
-  cellTotH.font = {bold:true, size:9, name:'맑은 고딕'};
-  cellTotH.border = ALL_THIN;
+  const cTH = ws.getCell(totR,8);
+  cTH.fill = bgFill(LGRY);
+  cTH.font = {bold:true, size:9, name:'맑은 고딕'};
+  cTH.border = ALL_THIN;
 
   ws.getCell(totR,9).border = ALL_THIN;
   ws.getRow(totR).height = 18;
