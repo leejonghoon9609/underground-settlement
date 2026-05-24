@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
@@ -1510,8 +1509,10 @@ function handleDrop(e) {
 
 function handleFileUpload(file) {
   if (!file) return;
+  // XLSX 라이브러리 확인
   if (typeof XLSX === 'undefined') {
-    showToast('❌ 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error');
+    // ExcelJS로 대체 읽기 시도
+    readWithExcelJS(file);
     return;
   }
   const reader = new FileReader();
@@ -1615,6 +1616,62 @@ function addAllFromUpload() {
   document.getElementById('uploadPreview').style.display = 'none';
   showToast(`✅ ${projects.length}개 사업이 추가되었습니다`);
   setTimeout(() => switchTab('list'), 800);
+}
+
+
+function readWithExcelJS(file) {
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(e.target.result);
+      
+      const ws = wb.getWorksheet('세부내역');
+      if (!ws) {
+        showToast('❌ 세부내역 시트를 찾을 수 없습니다.', 'error');
+        return;
+      }
+
+      uploadedProjects = [];
+      for (let r = 5; r <= 23; r++) {
+        const row = ws.getRow(r);
+        const gubun    = row.getCell(3).value;
+        const region   = row.getCell(4).value;
+        const surveyName = row.getCell(5).value;
+        const workCode = row.getCell(6).value;
+        const workName = row.getCell(7).value;
+        const tango    = row.getCell(8).value;
+        const exposed  = parseFloat(row.getCell(11).value) || 0;
+        const probe    = parseFloat(row.getCell(12).value) || 0;
+        const remark   = row.getCell(16).value;
+
+        if (!workCode && !workName) continue;
+        if (exposed === 0 && probe === 0) continue;
+
+        const method = (exposed > 0 && probe > 0) ? 'realtime' : 'probe';
+        const cost = calcCost(exposed, probe, method);
+
+        uploadedProjects.push({
+          id: Date.now() + r,
+          gubun: gubun || '', region: region || '',
+          surveyName: surveyName || '', workCode: workCode || '',
+          workName: workName || '', tangoType: tango || '[E-4. 지장이설] 원인자 공사',
+          remark: remark || '', exposedKm: exposed, probeKm: probe, method,
+          ...cost,
+        });
+      }
+
+      if (uploadedProjects.length === 0) {
+        showToast('❌ 읽어온 데이터가 없습니다.', 'error');
+        return;
+      }
+      renderUploadPreview();
+      showToast('✅ ' + uploadedProjects.length + '개 사업을 읽었습니다');
+    } catch(err) {
+      showToast('❌ 파일 읽기 오류: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function cancelUpload() {
