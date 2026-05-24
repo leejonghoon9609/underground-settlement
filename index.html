@@ -1610,6 +1610,56 @@ function cancelUpload() {
   document.getElementById('fileInput').value = '';
 }
 
+
+// ============================================================
+// 유틸리티
+// ============================================================
+function deleteProject(id) {
+  if (!confirm('이 사업을 삭제하시겠습니까?')) return;
+  projects = projects.filter(p => p.id !== id);
+  saveProjects();
+  renderList();
+  updateBadge();
+  showToast('🗑️ 삭제되었습니다');
+}
+
+function resetForm() {
+  ['gubun','region','surveyName','workCode','workName','tangoType','remark'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('露出距離').value = '';
+  document.getElementById('탐사距離').value = '';
+  document.getElementById('totalDist').textContent = '0.000 km';
+  document.getElementById('methodBadge').textContent = '미입력';
+  document.getElementById('methodBadge').className = 'method-badge empty';
+  document.getElementById('calcResult').style.display = 'none';
+}
+
+function saveProjects() {
+  try { localStorage.setItem('underground_projects', JSON.stringify(projects)); } catch(e) {}
+}
+
+function updateBadge() {
+  document.getElementById('projectCount').textContent = '사업 ' + projects.length + '건';
+}
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('ko-KR');
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = type === 'error' ? 'var(--red)' : 'var(--green)';
+  t.style.color = type === 'error' ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
 // 초기화
 updateBadge();
 </script>
