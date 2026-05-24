@@ -877,91 +877,70 @@ function xlsGalji(wb, ym) {
   });
 
   const GREY = 'BFBFBF';
-  // 세부내역 시트 참조 범위
-  // H열=사업구분, I열=측량거리합계, J열=Tango굴착, K열=노출측량, L열=탐사측량, O열=공사비금액
-  const detRef = "'세부내역'!$H$5:$H$23";
+  // 원본과 동일한 SUMIF 수식 (세부내역 H5:H23 기준)
+  // 원본: =SUMIF(세부내역!$H$5:$H$10,'공공측량 갑지'!A4,세부내역!$K$5:$K$10)
+  const DET = '세부내역';
+  const GAL = "'공공측량 갑지'";
+
+  function sumif(detCol, galRow) {
+    return "SUMIF("+DET+"!$H$5:$H$23,"+GAL+"!A"+galRow+","+DET+"!$"+detCol+"$5:$"+detCol+"$23)";
+  }
 
   let row = 4;
-  TANGO_LIST.forEach((t, idx) => {
+  TANGO_LIST.forEach((t) => {
     const a = agg[t];
     const r = row;
-    const aRef = "'공공측량 갑지'!$A$" + r;
 
     // A열: 배경없음, 왼쪽정렬, bold
-    SC(ws,r,1,t, {bold:true, h:'left'});
+    SC(ws,r,1,t,{bold:true,h:'left'});
 
-    // B열: 측량거리 합계 SUMIF
-    ws.getCell(r,2).value = {formula:"SUMIF("+detRef+","+aRef+",'세부내역'!$I$5:$I$23)", result: a.dist||0};
-    ws.getCell(r,2).numFmt = '0.000';
-    ws.getCell(r,2).alignment = aln('center');
-    ws.getCell(r,2).border = ALL_THIN;
+    // B: 측량거리합계(I열)
+    ws.getCell(r,2).value = {formula:sumif('I',r), result:+(a.dist||0).toFixed(3)};
+    ws.getCell(r,2).numFmt='0.000'; ws.getCell(r,2).alignment=aln('center'); ws.getCell(r,2).border=ALL_THIN; ws.getCell(r,2).font=fnt(false,9);
 
-    // C열: Tango굴착거리 SUMIF
-    ws.getCell(r,3).value = {formula:"SUMIF("+detRef+","+aRef+",'세부내역'!$J$5:$J$23)", result: a.tango||0};
-    ws.getCell(r,3).numFmt = '0.000';
-    ws.getCell(r,3).alignment = aln('center');
-    ws.getCell(r,3).border = ALL_THIN;
+    // C: Tango굴착(J열)
+    ws.getCell(r,3).value = {formula:sumif('J',r), result:+(a.tango||0).toFixed(3)};
+    ws.getCell(r,3).numFmt='0.000'; ws.getCell(r,3).alignment=aln('center'); ws.getCell(r,3).border=ALL_THIN; ws.getCell(r,3).font=fnt(false,9);
 
-    // D열: 노출측량 SUMIF
-    ws.getCell(r,4).value = {formula:"SUMIF("+detRef+","+aRef+",'세부내역'!$K$5:$K$23)", result: a.exp||0};
-    ws.getCell(r,4).numFmt = '0.000';
-    ws.getCell(r,4).alignment = aln('center');
-    ws.getCell(r,4).border = ALL_THIN;
+    // D: 노출측량(K열)
+    ws.getCell(r,4).value = {formula:sumif('K',r), result:+(a.exp||0).toFixed(3)};
+    ws.getCell(r,4).numFmt='0.000'; ws.getCell(r,4).alignment=aln('center'); ws.getCell(r,4).border=ALL_THIN; ws.getCell(r,4).font=fnt(false,9);
 
-    // E열: 탐사측량 SUMIF
-    ws.getCell(r,5).value = {formula:"SUMIF("+detRef+","+aRef+",'세부내역'!$L$5:$L$23)", result: a.prob||0};
-    ws.getCell(r,5).numFmt = '0.000';
-    ws.getCell(r,5).alignment = aln('center');
-    ws.getCell(r,5).border = ALL_THIN;
+    // E: 탐사측량(L열)
+    ws.getCell(r,5).value = {formula:sumif('L',r), result:+(a.prob||0).toFixed(3)};
+    ws.getCell(r,5).numFmt='0.000'; ws.getCell(r,5).alignment=aln('center'); ws.getCell(r,5).border=ALL_THIN; ws.getCell(r,5).font=fnt(false,9);
 
-    // F열: 소계 SUM(D:E)
-    ws.getCell(r,6).value = {formula:"SUM(D"+r+":E"+r+")", result: (a.exp+a.prob)||0};
-    ws.getCell(r,6).numFmt = '0.000';
-    ws.getCell(r,6).alignment = aln('center');
-    ws.getCell(r,6).border = ALL_THIN;
+    // F: 소계 =SUM(D:E)
+    ws.getCell(r,6).value = {formula:"SUM(D"+r+":E"+r+")", result:+((a.exp+a.prob)||0).toFixed(3)};
+    ws.getCell(r,6).numFmt='0.000'; ws.getCell(r,6).alignment=aln('center'); ws.getCell(r,6).border=ALL_THIN; ws.getCell(r,6).font=fnt(false,9);
 
-    // G열: 정산금액 SUMIF (회색배경)
-    ws.getCell(r,7).value = {formula:"SUMIF("+detRef+","+aRef+",'세부내역'!$O$5:$O$23)", result: a.amt||0};
-    ws.getCell(r,7).numFmt = '#,##0';
-    ws.getCell(r,7).alignment = aln('right');
-    ws.getCell(r,7).fill = bgFill(GREY);
-    ws.getCell(r,7).border = ALL_THIN;
+    // G: 정산금액(O열) - 회색배경
+    ws.getCell(r,7).value = {formula:sumif('O',r), result:a.amt||0};
+    ws.getCell(r,7).numFmt='#,##0'; ws.getCell(r,7).alignment=aln('right'); ws.getCell(r,7).border=ALL_THIN; ws.getCell(r,7).fill=bgFill(GREY); ws.getCell(r,7).font=fnt(false,9);
 
-    // H열: 안전관리비 (회색)
+    // H: 안전관리비 - 회색
     SC(ws,r,8,null,{bg:GREY});
     SC(ws,r,9,null);
-
-    ws.getRow(r).height = 18;
+    ws.getRow(r).height=18;
     row++;
   });
 
-  // 합계행 (SUM 수식 + 회색)
+  // 합계행 =SUM(B4:B11) 형태 - 원본과 동일
   const totR = row;
-  const dataStart = 4;
-  const dataEnd = totR - 1;
+  const endR = totR - 1;
 
   SC(ws,totR,1,'합계',{bold:true,h:'center',bg:GREY});
-
-  ['B','C','D','E','F'].forEach((col, i) => {
-    const c = i + 2;
-    ws.getCell(totR,c).value = {formula:"SUM("+col+dataStart+":"+col+dataEnd+")", result:0};
-    ws.getCell(totR,c).numFmt = '0.000';
-    ws.getCell(totR,c).font = fnt(true,9,'000000');
-    ws.getCell(totR,c).alignment = aln('center');
-    ws.getCell(totR,c).fill = bgFill(GREY);
-    ws.getCell(totR,c).border = ALL_THIN;
+  ['B','C','D','E','F'].forEach((col,i) => {
+    const c = i+2;
+    ws.getCell(totR,c).value = {formula:"SUM("+col+"4:"+col+endR+")", result:0};
+    ws.getCell(totR,c).numFmt='0.000'; ws.getCell(totR,c).alignment=aln('center');
+    ws.getCell(totR,c).fill=bgFill(GREY); ws.getCell(totR,c).border=ALL_THIN; ws.getCell(totR,c).font=fnt(true,9);
   });
-
-  ws.getCell(totR,7).value = {formula:"SUM(G"+dataStart+":G"+dataEnd+")", result:0};
-  ws.getCell(totR,7).numFmt = '#,##0';
-  ws.getCell(totR,7).font = fnt(true,9,'000000');
-  ws.getCell(totR,7).alignment = aln('right');
-  ws.getCell(totR,7).fill = bgFill(GREY);
-  ws.getCell(totR,7).border = ALL_THIN;
-
-  SC(ws,totR,8,null,{bold:true,bg:GREY});
-  SC(ws,totR,9,null,{bg:GREY});
-  ws.getRow(totR).height = 18;
+  ws.getCell(totR,7).value = {formula:"SUM(G4:G"+endR+")", result:0};
+  ws.getCell(totR,7).numFmt='#,##0'; ws.getCell(totR,7).alignment=aln('right');
+  ws.getCell(totR,7).fill=bgFill(GREY); ws.getCell(totR,7).border=ALL_THIN; ws.getCell(totR,7).font=fnt(true,9);
+  SC(ws,totR,8,null,{bold:true,bg:GREY}); SC(ws,totR,9,null,{bg:GREY});
+  ws.getRow(totR).height=18;
 }
 
 // ── 시트2: 원가계산서 ───────────────────────────
