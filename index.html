@@ -787,7 +787,7 @@ async function downloadExcel() {
 // ── 공통 스타일 헬퍼
 const BDR_THIN = {style:'thin', color:{argb:'FF000000'}};
 const ALL_THIN = {top:BDR_THIN, bottom:BDR_THIN, left:BDR_THIN, right:BDR_THIN};
-function bgFill(hex6) { return {type:'pattern', pattern:'solid', fgColor:{argb:'FF'+hex6}, bgColor:{argb:'FF'+hex6}}; }
+function bgFill(hex6) { return {type:'pattern', pattern:'solid', fgColor:{argb:'FF'+hex6}}; }
 function fnt(bold, sz, colorHex) { return {bold:!!bold, size:sz||9, color:{argb:'FF'+(colorHex||'000000')}, name:'맑은 고딕'}; }
 function aln(h, v, wrap) { return {horizontal:h||'left', vertical:v||'middle', wrapText:!!wrap}; }
 
