@@ -769,7 +769,14 @@ async function downloadExcel() {
     const tplRes = await fetch('https://raw.githubusercontent.com/leejonghoon9609/underground-settlement/main/template.xlsx');
     if (!tplRes.ok) throw new Error('템플릿 파일을 불러올 수 없습니다');
     const tplBuffer = await tplRes.arrayBuffer();
-    const tplBase64 = btoa(String.fromCharCode(...new Uint8Array(tplBuffer)));
+    // 큰 파일을 청크로 나눠서 base64 변환
+    const tplBytes = new Uint8Array(tplBuffer);
+    let tplBase64 = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < tplBytes.length; i += chunkSize) {
+      tplBase64 += String.fromCharCode(...tplBytes.subarray(i, i + chunkSize));
+    }
+    tplBase64 = btoa(tplBase64);
 
     // 2. Vercel API 호출
     const res = await fetch('https://underground-settlement-gao9kssbx-leejonghoon9609s-projects.vercel.app/api/generate', {
