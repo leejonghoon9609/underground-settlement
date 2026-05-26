@@ -787,7 +787,7 @@ async function downloadExcel() {
 // ── 공통 스타일 헬퍼
 const BDR_THIN = {style:'thin'};
 const ALL_THIN = {top:BDR_THIN, bottom:BDR_THIN, left:BDR_THIN, right:BDR_THIN};
-function bgFill(hex6) { return {type:'pattern', pattern:'solid', fgColor:{argb:'FF'+hex6}}; }
+function bgFill(hex6) { return {type:'pattern', pattern:'solid', fgColor:{argb:'FF'+hex6}, bgColor:{indexed:64}}; }
 function fnt(bold, sz, colorHex) {
   const f = {bold:!!bold, size:sz||9, name:'맑은 고딕'};
   if (colorHex && colorHex !== '000000') f.color = {argb:'FF'+colorHex};
@@ -828,7 +828,7 @@ function xlsGalji(wb, ym) {
   r1.value = ym + ' 기성준공내역서_도급_SKTNS_수도권지사_측량';
   r1.font = fnt(true, 12, '000000');
   r1.alignment = aln('left');
-  r1.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFFFF'}};
+  r1.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFFFF'}, bgColor:{indexed:64}};
   r1.border = ALL_THIN;
 
   // 행2,3 병합
@@ -845,7 +845,7 @@ function xlsGalji(wb, ym) {
     if (val !== null) cell.value = val;
     cell.font = fnt(true, 9, '000000');
     cell.alignment = aln('center', 'middle', true);
-    cell.fill = bg ? bgFill(bg) : {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFFFF'}};
+    cell.fill = bg ? bgFill(bg) : {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFFFFF'}, bgColor:{indexed:64}};
     cell.border = ALL_THIN;
   }
   hdr(2,1,'사업구분(Tango)',GRN); hdr(2,2,'측량거리(km)',GRN);
