@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
@@ -773,7 +773,7 @@ async function downloadExcel() {
 
     // 2. SheetJS로 템플릿 읽기
     const data = new Uint8Array(templateBuffer);
-    const wb = XLSX.read(data, {type:'array', cellStyles:true, cellFormula:true});
+    const wb = XLSX.read(data, {type:'array', cellStyles:true, cellFormula:true, sheetStubs:true});
 
     // 3. 세부내역 시트에 값 주입
     injectDetail(wb);
@@ -785,7 +785,7 @@ async function downloadExcel() {
     const now = new Date();
     const fname = '정산내역서_' + now.getFullYear() + '년' +
       String(now.getMonth()+1).padStart(2,'0') + '월_수도권지사_측량.xlsx';
-    XLSX.writeFile(wb, fname, {cellStyles:true});
+    XLSX.writeFile(wb, fname, {cellStyles:true, type:'binary', bookSST:false});
     showToast('✅ 다운로드 완료!');
 
   } catch(e) {
