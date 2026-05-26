@@ -779,7 +779,7 @@ async function downloadExcel() {
     tplBase64 = btoa(tplBase64);
 
     // 2. Vercel API 호출
-    const res = await fetch('https://underground-settlement-gao9kssbx-leejonghoon9609s-projects.vercel.app/api/generate', {
+    const res = await fetch('https://underground-settlement.vercel.app/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({projects: projects, template: tplBase64})
