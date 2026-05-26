@@ -760,32 +760,41 @@ function renderSummary() {
 // ================================================================
 async function downloadExcel() {
   if (!projects.length) { showToast('❌ 다운로드할 사업이 없습니다', true); return; }
-  if (projects.length > 16) { showToast('❌ 최대 16건까지 다운로드 가능합니다', true); return; }
+  if (projects.length > 16) { showToast('❌ 최대 16건까지 가능합니다', true); return; }
 
-  showToast('⏳ 템플릿 불러오는 중...');
+  showToast('⏳ 엑셀 생성 중...');
 
   try {
-    // 1. GitHub에서 템플릿 파일 가져오기
-    const TEMPLATE_URL = 'https://raw.githubusercontent.com/leejonghoon9609/underground-settlement/main/template.xlsx';
-    const response = await fetch(TEMPLATE_URL);
-    if (!response.ok) throw new Error('템플릿 파일을 불러올 수 없습니다');
-    const templateBuffer = await response.arrayBuffer();
+    // 1. 템플릿 파일 가져오기
+    const tplRes = await fetch('https://raw.githubusercontent.com/leejonghoon9609/underground-settlement/main/template.xlsx');
+    if (!tplRes.ok) throw new Error('템플릿 파일을 불러올 수 없습니다');
+    const tplBuffer = await tplRes.arrayBuffer();
+    const tplBase64 = btoa(String.fromCharCode(...new Uint8Array(tplBuffer)));
 
-    // 2. SheetJS로 템플릿 읽기
-    const data = new Uint8Array(templateBuffer);
-    const wb = XLSX.read(data, {type:'array', cellStyles:true, cellFormula:true, sheetStubs:true});
+    // 2. Vercel API 호출
+    const res = await fetch('https://underground-settlement-gao9kssbx-leejonghoon9609s-projects.vercel.app/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({projects: projects, template: tplBase64})
+    });
 
-    // 3. 세부내역 시트에 값 주입
-    injectDetail(wb);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '서버 오류');
+    }
 
-    // 4. 원가계산서 시트에 값 주입
-    injectCost(wb);
-
-    // 5. 다운로드
+    // 3. 다운로드
+    const data = await res.json();
+    const bytes = Uint8Array.from(atob(data.file), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     const now = new Date();
-    const fname = '정산내역서_' + now.getFullYear() + '년' +
+    a.href = url;
+    a.download = '정산내역서_' + now.getFullYear() + '년' +
       String(now.getMonth()+1).padStart(2,'0') + '월_수도권지사_측량.xlsx';
-    XLSX.writeFile(wb, fname, {cellStyles:true, type:'binary', bookSST:false});
+    a.click();
+    URL.revokeObjectURL(url);
     showToast('✅ 다운로드 완료!');
 
   } catch(e) {
@@ -793,6 +802,7 @@ async function downloadExcel() {
     console.error(e);
   }
 }
+
 
 // ── 세부내역 시트 값 주입
 function injectDetail(wb) {
