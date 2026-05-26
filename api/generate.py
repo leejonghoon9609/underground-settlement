@@ -1,3 +1,4 @@
+from http.server import BaseHTTPRequestHandler
 import json
 import base64
 from io import BytesIO
@@ -51,71 +52,82 @@ COST_ROW_MAP = {
     40: 'finalCost', 41: 'vat', 42: 'totalWithVat',
 }
 
-def handler(request):
-    if request.method == 'OPTIONS':
-        return Response('', 200, {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-        })
+class handler(BaseHTTPRequestHandler):
 
-    if request.method != 'POST':
-        return Response(json.dumps({'error': 'Method not allowed'}), 405, {
-            'Access-Control-Allow-Origin': '*',
-        })
+    def send_cors_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Accept')
 
-    try:
-        body = json.loads(request.body)
-        projects = body['projects']
-        template_b64 = body['template']
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_cors_headers()
+        self.send_header('Content-Length', '0')
+        self.end_headers()
 
-        template_bytes = base64.b64decode(template_b64)
-        wb = openpyxl.load_workbook(BytesIO(template_bytes))
+    def do_POST(self):
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            body = json.loads(self.rfile.read(length))
+            projects = body['projects']
+            template_b64 = body['template']
 
-        ws_detail = wb['세부내역']
-        COL = {
-            'gubun': 3, 'region': 4, 'surveyName': 5, 'workCode': 6,
-            'workName': 7, 'tangoType': 8, 'tangoKm': 10,
-            'exposedKm': 11, 'probeKm': 12, 'finalCost': 15, 'remark': 16
-        }
-        for i, p in enumerate(projects):
-            cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
-            row = 5 + i
-            ws_detail.cell(row, COL['gubun']).value      = p.get('gubun', '')
-            ws_detail.cell(row, COL['region']).value     = p.get('region', '')
-            ws_detail.cell(row, COL['surveyName']).value = p.get('surveyName', '')
-            ws_detail.cell(row, COL['workCode']).value   = p.get('workCode', '')
-            ws_detail.cell(row, COL['workName']).value   = p.get('workName', '')
-            ws_detail.cell(row, COL['tangoType']).value  = p.get('tangoType', '')
-            ws_detail.cell(row, COL['tangoKm']).value    = p.get('tangoKm', 0)
-            ws_detail.cell(row, COL['exposedKm']).value  = p.get('exposedKm', 0)
-            ws_detail.cell(row, COL['probeKm']).value    = p.get('probeKm', 0)
-            ws_detail.cell(row, COL['finalCost']).value  = cost['finalCost']
-            ws_detail.cell(row, COL['remark']).value     = p.get('remark', '')
+            # 템플릿 로드
+            template_bytes = base64.b64decode(template_b64)
+            wb = openpyxl.load_workbook(BytesIO(template_bytes))
 
-        ws_cost = wb['원가계산서']
-        for i, p in enumerate(projects):
-            cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
-            start_col = 13 + i * 3
-            ws_cost.cell(5, start_col).value = f"{i+1}. {p.get('workCode', '')}"
-            for row, key in COST_ROW_MAP.items():
-                val = cost.get(key, 0)
-                ws_cost.cell(row, start_col).value     = val
-                ws_cost.cell(row, start_col + 1).value = 0
-                ws_cost.cell(row, start_col + 2).value = val
+            # 세부내역 값 주입
+            ws_detail = wb['세부내역']
+            COL = {
+                'gubun': 3, 'region': 4, 'surveyName': 5, 'workCode': 6,
+                'workName': 7, 'tangoType': 8, 'tangoKm': 10,
+                'exposedKm': 11, 'probeKm': 12, 'finalCost': 15, 'remark': 16
+            }
+            for i, p in enumerate(projects):
+                cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
+                row = 5 + i
+                ws_detail.cell(row, COL['gubun']).value      = p.get('gubun', '')
+                ws_detail.cell(row, COL['region']).value     = p.get('region', '')
+                ws_detail.cell(row, COL['surveyName']).value = p.get('surveyName', '')
+                ws_detail.cell(row, COL['workCode']).value   = p.get('workCode', '')
+                ws_detail.cell(row, COL['workName']).value   = p.get('workName', '')
+                ws_detail.cell(row, COL['tangoType']).value  = p.get('tangoType', '')
+                ws_detail.cell(row, COL['tangoKm']).value    = p.get('tangoKm', 0)
+                ws_detail.cell(row, COL['exposedKm']).value  = p.get('exposedKm', 0)
+                ws_detail.cell(row, COL['probeKm']).value    = p.get('probeKm', 0)
+                ws_detail.cell(row, COL['finalCost']).value  = cost['finalCost']
+                ws_detail.cell(row, COL['remark']).value     = p.get('remark', '')
 
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        result_b64 = base64.b64encode(output.read()).decode('utf-8')
+            # 원가계산서 값 주입
+            ws_cost = wb['원가계산서']
+            for i, p in enumerate(projects):
+                cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
+                start_col = 13 + i * 3
+                ws_cost.cell(5, start_col).value = f"{i+1}. {p.get('workCode', '')}"
+                for row, key in COST_ROW_MAP.items():
+                    val = cost.get(key, 0)
+                    ws_cost.cell(row, start_col).value     = val
+                    ws_cost.cell(row, start_col + 1).value = 0
+                    ws_cost.cell(row, start_col + 2).value = val
 
-        return Response(json.dumps({'file': result_b64}), 200, {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json',
-        })
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            result_b64 = base64.b64encode(output.read()).decode('utf-8')
+            
+            resp = json.dumps({'file': result_b64}).encode('utf-8')
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(resp)))
+            self.end_headers()
+            self.wfile.write(resp)
 
-    except Exception as e:
-        return Response(json.dumps({'error': str(e)}), 500, {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json',
-        })
+        except Exception as e:
+            resp = json.dumps({'error': str(e)}).encode('utf-8')
+            self.send_response(500)
+            self.send_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(resp)))
+            self.end_headers()
+            self.wfile.write(resp)
