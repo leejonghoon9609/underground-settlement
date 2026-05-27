@@ -34,20 +34,20 @@ def calc_cost(exposed_km, probe_km, method):
     et = ac + em + pe + he + sa + el + me
     gm = int((lt + et) * RATIOS['genMgmt'])
     pr = int((lt + et + gm) * RATIOS['profit'])
-    wc = lt + et + gm + pr              # (8) 공사비 - 절사 없음
+    wc = lt + et + gm + pr                         # (8) 공사비 - 절사 없음
     ct = int((wc - sa) * RATIOS['contract']) + sa  # (9) 낙찰가 - 절사 없음
-    fi = (wc // 1000) * 1000           # (17) 공사비합계 - 천원 절사
-    vt = round(ct * RATIOS['vat'])
+    fi = (ct // 1000) * 1000                       # (17) 공사비합계 - 낙찰가 천원 절사
+    vt = round(fi * RATIOS['vat'])                 # (18) 부가세 - 공사비합계 기준
     return {
         'directLabor': dl, 'indirectLabor': il, 'laborTotal': lt,
         'machineExp': me, 'accident': ac, 'employment': em,
         'pension': pe, 'health': he, 'safety': sa, 'elderly': el,
         'expTotal': et, 'generalMgmt': gm, 'profit': pr,
-        'workCost': wc,     # 행31: (8) 공사비
-        'contract': ct,     # 행32: (9) 낙찰가
-        'finalCost': fi,    # 행40: (17) 공사비합계
-        'vat': vt,          # 행41: (18) 부가가치세
-        'totalWithVat': ct + vt,  # 행42: (19) 총계
+        'workCost': wc,          # 행31: (8) 공사비
+        'contract': ct,          # 행32: (9) 낙찰가
+        'finalCost': fi,         # 행40: (17) 공사비합계
+        'vat': vt,               # 행41: (18) 부가가치세
+        'totalWithVat': fi + vt, # 행42: (19) 총계
     }
 
 COST_ROW_MAP = {
@@ -94,7 +94,7 @@ class handler(BaseHTTPRequestHandler):
                 ws_detail.cell(row, 10).value = p.get('tangoKm', 0)
                 ws_detail.cell(row, 11).value = p.get('exposedKm', 0)
                 ws_detail.cell(row, 12).value = p.get('probeKm', 0)
-                ws_detail.cell(row, 15).value = cost['contract']
+                ws_detail.cell(row, 15).value = cost['finalCost']
                 ws_detail.cell(row, 16).value = p.get('remark', '')
 
             # 원가계산서 값 주입
