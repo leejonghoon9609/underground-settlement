@@ -1,11 +1,11 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import base64
-import urllib.request
+import os
 from io import BytesIO
 import openpyxl
 
-TEMPLATE_URL = 'https://raw.githubusercontent.com/leejonghoon9609/underground-settlement/main/template.xlsx'
+TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template.xlsx')
 
 RATES = {
     'realtime': {'labor': 6209, 'machine': 9437},
@@ -74,9 +74,9 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             projects = body['projects']
 
-            # 서버에서 직접 GitHub에서 템플릿 다운로드 (413 오류 해결)
-            with urllib.request.urlopen(TEMPLATE_URL) as resp:
-                template_bytes = resp.read()
+            # 로컬 template.xlsx 직접 읽기
+            with open(TEMPLATE_PATH, 'rb') as f:
+                template_bytes = f.read()
 
             wb = openpyxl.load_workbook(BytesIO(template_bytes))
 
