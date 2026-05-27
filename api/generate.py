@@ -1,8 +1,11 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import base64
+import urllib.request
 from io import BytesIO
 import openpyxl
+
+TEMPLATE_URL = 'https://raw.githubusercontent.com/leejonghoon9609/underground-settlement/main/template.xlsx'
 
 RATES = {
     'realtime': {'labor': 6209, 'machine': 9437},
@@ -70,10 +73,11 @@ class handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(length))
             projects = body['projects']
-            template_b64 = body['template']
 
-            # 템플릿 로드
-            template_bytes = base64.b64decode(template_b64)
+            # 서버에서 직접 GitHub에서 템플릿 다운로드
+            with urllib.request.urlopen(TEMPLATE_URL) as resp:
+                template_bytes = resp.read()
+
             wb = openpyxl.load_workbook(BytesIO(template_bytes))
 
             # 세부내역 값 주입
@@ -114,7 +118,7 @@ class handler(BaseHTTPRequestHandler):
             wb.save(output)
             output.seek(0)
             result_b64 = base64.b64encode(output.read()).decode('utf-8')
-            
+
             resp = json.dumps({'file': result_b64}).encode('utf-8')
             self.send_response(200)
             self.send_cors_headers()
