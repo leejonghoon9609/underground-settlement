@@ -18,6 +18,18 @@ RATIOS = {
     'contract': 0.749, 'vat': 0.10,
 }
 
+# 세부내역 시트: tangoType 텍스트 → 고정 행 번호
+TANGO_ROW_MAP = {
+    '[A-2. 인입관로] 인입 관로 공급': 4,
+    '[B-3. 기간선로] 신설/증설/보강': 5,
+    '[B-3. 기간선로] 신축국사 연계 간선선로': 6,
+    '[C-2. 프론트홀 선로(5G)] 용량증설(5G)': 7,
+    '[E-4. 지장이설] 원인자 공사': 8,
+    '[E-4. 지장이설] 지중 인프라 확보': 9,
+    '[E-4. 지장이설] 순수 지장 이설': 10,
+    '[G-3. 프론트홀 선로(4G)] 용량증설(4G)': 11,
+}
+
 def calc_cost(exposed_km, probe_km, method):
     probe_m = probe_km * 1000
     r = RATES[method]
@@ -74,30 +86,23 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             projects = body['projects']
 
-            # 로컬 파일 직접 읽기
             wb = openpyxl.load_workbook(TEMPLATE_PATH)
 
-            # 세부내역 값 주입
+            # 세부내역 값 주입 (tangoType 기준 고정 행)
             ws_detail = wb['세부내역']
-            COL = {
-                'gubun': 3, 'region': 4, 'surveyName': 5, 'workCode': 6,
-                'workName': 7, 'tangoType': 8, 'tangoKm': 10,
-                'exposedKm': 11, 'probeKm': 12, 'finalCost': 15, 'remark': 16
-            }
-            for i, p in enumerate(projects):
+            for p in projects:
+                tango = p.get('tangoType', '')
+                row = TANGO_ROW_MAP.get(tango)
+                if row is None:
+                    continue
                 cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
-                row = 5 + i
-                ws_detail.cell(row, COL['gubun']).value      = p.get('gubun', '')
-                ws_detail.cell(row, COL['region']).value     = p.get('region', '')
-                ws_detail.cell(row, COL['surveyName']).value = p.get('surveyName', '')
-                ws_detail.cell(row, COL['workCode']).value   = p.get('workCode', '')
-                ws_detail.cell(row, COL['workName']).value   = p.get('workName', '')
-                ws_detail.cell(row, COL['tangoType']).value  = p.get('tangoType', '')
-                ws_detail.cell(row, COL['tangoKm']).value    = p.get('tangoKm', 0)
-                ws_detail.cell(row, COL['exposedKm']).value  = p.get('exposedKm', 0)
-                ws_detail.cell(row, COL['probeKm']).value    = p.get('probeKm', 0)
-                ws_detail.cell(row, COL['finalCost']).value  = cost['finalCost']
-                ws_detail.cell(row, COL['remark']).value     = p.get('remark', '')
+                survey_km = round(p.get('exposedKm', 0) + p.get('probeKm', 0), 3)
+                ws_detail.cell(row, 2).value = survey_km
+                ws_detail.cell(row, 3).value = p.get('tangoKm', 0)
+                ws_detail.cell(row, 4).value = p.get('exposedKm', 0)
+                ws_detail.cell(row, 5).value = p.get('probeKm', 0)
+                ws_detail.cell(row, 7).value = cost['finalCost']
+                ws_detail.cell(row, 9).value = p.get('remark', '')
 
             # 원가계산서 값 주입
             ws_cost = wb['원가계산서']
