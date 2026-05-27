@@ -36,7 +36,7 @@ def calc_cost(exposed_km, probe_km, method):
     pr = int((lt + et + gm) * RATIOS['profit'])
     wc = lt + et + gm + pr
     ct = int((wc - sa) * RATIOS['contract']) + sa
-    fi = (ct // 1000) * 1000
+    fi = ct  # 절사 없음
     vt = round(fi * RATIOS['vat'])
     return {
         'directLabor': dl, 'indirectLabor': il, 'laborTotal': lt,
