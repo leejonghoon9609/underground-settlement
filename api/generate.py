@@ -35,15 +35,16 @@ def calc_cost(exposed_km, probe_km, method):
     gm = int((lt + et) * RATIOS['genMgmt'])
     pr = int((lt + et + gm) * RATIOS['profit'])
     wc = lt + et + gm + pr
-    ct = int((wc - sa) * RATIOS['contract']) + sa
-    fi = ct  # 절사 없음
+    wc_floor = (wc // 1000) * 1000  # 공사비 천원 절사
+    ct = int((wc_floor - sa) * RATIOS['contract']) + sa
+    fi = ct  # 낙찰가 절사 없음
     vt = round(fi * RATIOS['vat'])
     return {
         'directLabor': dl, 'indirectLabor': il, 'laborTotal': lt,
         'machineExp': me, 'accident': ac, 'employment': em,
         'pension': pe, 'health': he, 'safety': sa, 'elderly': el,
         'expTotal': et, 'generalMgmt': gm, 'profit': pr,
-        'workCost': wc, 'finalCost': fi, 'vat': vt, 'totalWithVat': fi + vt,
+        'workCost': wc_floor, 'finalCost': fi, 'vat': vt, 'totalWithVat': fi + vt,
     }
 
 COST_ROW_MAP = {
