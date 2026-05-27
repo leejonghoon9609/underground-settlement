@@ -765,32 +765,19 @@ async function downloadExcel() {
   showToast('⏳ 엑셀 생성 중...');
 
   try {
-    // 1. 템플릿 파일 가져오기
-    const tplRes = await fetch('https://raw.githubusercontent.com/leejonghoon9609/underground-settlement/main/template.xlsx');
-    if (!tplRes.ok) throw new Error('템플릿 파일을 불러올 수 없습니다');
-    const tplBuffer = await tplRes.arrayBuffer();
-    // 큰 파일을 청크로 나눠서 base64 변환
-    const tplBytes = new Uint8Array(tplBuffer);
-    let tplBase64 = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < tplBytes.length; i += chunkSize) {
-      tplBase64 += String.fromCharCode(...tplBytes.subarray(i, i + chunkSize));
-    }
-    tplBase64 = btoa(tplBase64);
-
-    // 2. Vercel API 호출
+    // Vercel API 호출 (서버가 직접 GitHub에서 템플릿 다운로드)
     const res = await fetch('https://underground-settlement.vercel.app/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({projects: projects, template: tplBase64})
+      body: JSON.stringify({projects: projects})
     });
 
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.error || '서버 오류');
+      throw new Error(err.error || '서버 오류 ' + res.status);
     }
 
-    // 3. 다운로드
+    // 결과 파일 다운로드
     const data = await res.json();
     const bytes = Uint8Array.from(atob(data.file), c => c.charCodeAt(0));
     const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
@@ -808,104 +795,6 @@ async function downloadExcel() {
     showToast('❌ 오류: ' + e.message, true);
     console.error(e);
   }
-}
-
-
-// ── 세부내역 시트 값 주입
-function injectDetail(wb) {
-  const ws = wb.Sheets['세부내역'];
-  if (!ws) return;
-
-  // 데이터 영역: 5~20행, C~P열
-  // 열 매핑: C=구분, D=지역, E=공공측량명칭, F=공사코드, G=공사명
-  //          H=사업구분(Tango), J=Tango굴착거리, K=노출측량, L=탐사측량, O=공사비금액, P=비고
-  const COL = {
-    gubun:'C', region:'D', surveyName:'E', workCode:'F', workName:'G',
-    tangoType:'H', tangoKm:'J', exposedKm:'K', probeKm:'L',
-    finalCost:'O', remark:'P'
-  };
-
-  projects.forEach((p, i) => {
-    const row = 5 + i;
-    setCell(ws, COL.gubun     + row, p.gubun     || '');
-    setCell(ws, COL.region    + row, p.region    || '');
-    setCell(ws, COL.surveyName+ row, p.surveyName|| '');
-    setCell(ws, COL.workCode  + row, p.workCode  || '');
-    setCell(ws, COL.workName  + row, p.workName  || '');
-    setCell(ws, COL.tangoType + row, p.tangoType || '');
-    setCell(ws, COL.tangoKm  + row, p.tangoKm   || 0, 'n');
-    setCell(ws, COL.exposedKm + row, p.exposedKm || 0, 'n');
-    setCell(ws, COL.probeKm  + row, p.probeKm   || 0, 'n');
-    setCell(ws, COL.finalCost + row, p.finalCost || 0, 'n');
-    setCell(ws, COL.remark   + row, p.remark    || '');
-  });
-}
-
-// ── 원가계산서 시트 값 주입
-function injectCost(wb) {
-  const ws = wb.Sheets['원가계산서'];
-  if (!ws) return;
-
-  // 건별 열 시작: M(1건), P(2건), S(3건)... 3열씩
-  // 행별 원가항목 매핑
-  const ROW_MAP = {
-    5:  'workCode',      // 공사코드 헤더
-    10: 'directLabor',   // 직접노무비
-    15: 'indirectLabor', // 간접노무비
-    16: 'laborTotal',    // 노무비소계
-    19: 'accident',      // 산재보험료
-    20: 'employment',    // 고용보험료
-    21: 'pension',       // 국민연금
-    22: 'health',        // 국민건강보험
-    23: 'safety',        // 안전관리비
-    24: 'elderly',       // 노인장기요양
-    27: 'machineExp',    // 기계경비
-    28: 'expTotal',      // 경비소계
-    29: 'generalMgmt',   // 일반관리비
-    30: 'profit',        // 이윤
-    31: 'workCost',      // 공사비
-    32: 'finalCost',     // 낙찰가
-    40: 'finalCost',     // 공사비합계
-    41: 'vat',           // 부가가치세
-    42: 'totalWithVat',  // 총계
-  };
-
-  projects.forEach((p, i) => {
-    const startCol = 13 + i * 3; // M=13, P=16, S=19...
-    const colLetter = numToCol(startCol);
-
-    Object.entries(ROW_MAP).forEach(([row, key]) => {
-      const addr = colLetter + row;
-      if (key === 'workCode') {
-        setCell(ws, addr, (i+1) + '. ' + (p.workCode || ''));
-      } else {
-        const val = p[key] || 0;
-        setCell(ws, addr, val, 'n');
-        // Opex열(+1)은 0
-        setCell(ws, numToCol(startCol+1) + row, 0, 'n');
-        // 계열(+2)은 같은 값
-        setCell(ws, numToCol(startCol+2) + row, val, 'n');
-      }
-    });
-  });
-}
-
-// ── 유틸리티
-function setCell(ws, addr, val, type) {
-  if (!ws[addr]) ws[addr] = {};
-  ws[addr].v = val;
-  ws[addr].t = type || 's';
-  if (type === 'n') ws[addr].t = 'n';
-}
-
-function numToCol(n) {
-  let s = '';
-  while (n > 0) {
-    n--;
-    s = String.fromCharCode(65 + (n % 26)) + s;
-    n = Math.floor(n / 26);
-  }
-  return s;
 }
 
 
