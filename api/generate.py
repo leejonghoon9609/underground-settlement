@@ -76,22 +76,22 @@ class handler(BaseHTTPRequestHandler):
 
             wb = openpyxl.load_workbook(TEMPLATE_PATH)
 
-            # 세부내역 값 주입 (5행부터 순서대로)
+            # 세부내역 값 주입 (15행부터 → 공공측량 갑지 SUMIF 참조범위 맞춤)
             ws_detail = wb['세부내역']
             for i, p in enumerate(projects):
                 cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
-                row = 5 + i
-                ws_detail.cell(row, 3).value  = p.get('gubun', '')        # C: 구분
-                ws_detail.cell(row, 4).value  = p.get('region', '')       # D: 지역
-                ws_detail.cell(row, 5).value  = p.get('surveyName', '')   # E: 공공측량명칭
-                ws_detail.cell(row, 6).value  = p.get('workCode', '')     # F: 공사코드
-                ws_detail.cell(row, 7).value  = p.get('workName', '')     # G: 공사명
-                ws_detail.cell(row, 8).value  = p.get('tangoType', '')    # H: 사업구분(Tango)
-                ws_detail.cell(row, 10).value = p.get('tangoKm', 0)      # J: Tango굴착거리
-                ws_detail.cell(row, 11).value = p.get('exposedKm', 0)    # K: 노출측량
-                ws_detail.cell(row, 12).value = p.get('probeKm', 0)      # L: 탐사측량
-                ws_detail.cell(row, 15).value = cost['finalCost']         # O: 공사비금액
-                ws_detail.cell(row, 16).value = p.get('remark', '')       # P: 비고
+                row = 15 + i
+                ws_detail.cell(row, 3).value  = p.get('gubun', '')
+                ws_detail.cell(row, 4).value  = p.get('region', '')
+                ws_detail.cell(row, 5).value  = p.get('surveyName', '')
+                ws_detail.cell(row, 6).value  = p.get('workCode', '')
+                ws_detail.cell(row, 7).value  = p.get('workName', '')
+                ws_detail.cell(row, 8).value  = p.get('tangoType', '')
+                ws_detail.cell(row, 10).value = p.get('tangoKm', 0)
+                ws_detail.cell(row, 11).value = p.get('exposedKm', 0)
+                ws_detail.cell(row, 12).value = p.get('probeKm', 0)
+                ws_detail.cell(row, 15).value = cost['finalCost']
+                ws_detail.cell(row, 16).value = p.get('remark', '')
 
             # 원가계산서 값 주입
             ws_cost = wb['원가계산서']
