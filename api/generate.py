@@ -74,11 +74,8 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             projects = body['projects']
 
-            # 로컬 template.xlsx 직접 읽기
-            with open(TEMPLATE_PATH, 'rb') as f:
-                template_bytes = f.read()
-
-            wb = openpyxl.load_workbook(BytesIO(template_bytes))
+            # 로컬 파일 직접 읽기
+            wb = openpyxl.load_workbook(TEMPLATE_PATH)
 
             # 세부내역 값 주입
             ws_detail = wb['세부내역']
@@ -128,7 +125,9 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(resp)
 
         except Exception as e:
-            resp = json.dumps({'error': str(e)}).encode('utf-8')
+            import traceback
+            err_msg = traceback.format_exc()
+            resp = json.dumps({'error': str(e), 'traceback': err_msg}).encode('utf-8')
             self.send_response(500)
             self.send_cors_headers()
             self.send_header('Content-Type', 'application/json')
