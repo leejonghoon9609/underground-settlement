@@ -74,7 +74,7 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             projects = body['projects']
 
-            # 서버에서 직접 GitHub에서 템플릿 다운로드
+            # 서버에서 직접 GitHub에서 템플릿 다운로드 (413 오류 해결)
             with urllib.request.urlopen(TEMPLATE_URL) as resp:
                 template_bytes = resp.read()
 
