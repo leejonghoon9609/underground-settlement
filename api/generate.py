@@ -34,17 +34,17 @@ def calc_cost(exposed_km, probe_km, method):
     et = ac + em + pe + he + sa + el + me
     gm = int((lt + et) * RATIOS['genMgmt'])
     pr = int((lt + et + gm) * RATIOS['profit'])
-    wc = lt + et + gm + pr
-    wc_floor = (wc // 1000) * 1000  # 공사비 천원 절사
-    ct = int((wc_floor - sa) * RATIOS['contract']) + sa
-    fi = ct  # 낙찰가 절사 없음
-    vt = round(fi * RATIOS['vat'])
+    wc = lt + et + gm + pr              # (8) 공사비 - 절사 없음
+    fi = (wc // 1000) * 1000           # (17) 공사비합계 - 천원 절사
+    ct = int((wc - sa) * RATIOS['contract']) + sa  # (9) 낙찰가 - wc 기준, 절사 없음
+    vt = round(ct * RATIOS['vat'])
     return {
         'directLabor': dl, 'indirectLabor': il, 'laborTotal': lt,
         'machineExp': me, 'accident': ac, 'employment': em,
         'pension': pe, 'health': he, 'safety': sa, 'elderly': el,
         'expTotal': et, 'generalMgmt': gm, 'profit': pr,
-        'workCost': wc_floor, 'finalCost': fi, 'vat': vt, 'totalWithVat': fi + vt,
+        'workCost': wc, 'finalCost': fi, 'contract': ct,
+        'vat': vt, 'totalWithVat': ct + vt,
     }
 
 COST_ROW_MAP = {
@@ -53,7 +53,7 @@ COST_ROW_MAP = {
     22: 'health', 23: 'safety', 24: 'elderly',
     27: 'machineExp', 28: 'expTotal', 29: 'generalMgmt',
     30: 'profit', 31: 'workCost', 32: 'finalCost',
-    40: 'finalCost', 41: 'vat', 42: 'totalWithVat',
+    40: 'contract', 41: 'vat', 42: 'totalWithVat',
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -91,7 +91,7 @@ class handler(BaseHTTPRequestHandler):
                 ws_detail.cell(row, 10).value = p.get('tangoKm', 0)
                 ws_detail.cell(row, 11).value = p.get('exposedKm', 0)
                 ws_detail.cell(row, 12).value = p.get('probeKm', 0)
-                ws_detail.cell(row, 15).value = cost['finalCost']
+                ws_detail.cell(row, 15).value = cost['contract']
                 ws_detail.cell(row, 16).value = p.get('remark', '')
 
             # 원가계산서 값 주입
