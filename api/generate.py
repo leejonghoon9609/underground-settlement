@@ -76,11 +76,11 @@ class handler(BaseHTTPRequestHandler):
 
             wb = openpyxl.load_workbook(TEMPLATE_PATH)
 
-            # 세부내역 값 주입 (15행부터 → 공공측량 갑지 SUMIF 참조범위 맞춤)
+            # 세부내역 값 주입 (5행부터 순서대로)
             ws_detail = wb['세부내역']
             for i, p in enumerate(projects):
                 cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'])
-                row = 15 + i
+                row = 5 + i
                 ws_detail.cell(row, 3).value  = p.get('gubun', '')
                 ws_detail.cell(row, 4).value  = p.get('region', '')
                 ws_detail.cell(row, 5).value  = p.get('surveyName', '')
