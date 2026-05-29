@@ -59,6 +59,7 @@ def calc_cost(exposed_km, probe_km, method, survey_name=''):
         'contractCost': ct,   # 행32: 낙찰가 (절사 없음)
         'finalCost': fi,      # 행40: 공사비합계 (천단위 절사)
         'vat': vt, 'totalWithVat': fi + vt,
+        'safetyRate': safety_rate,  # E23 비율 표시용
     }
 
 COST_ROW_MAP = {
@@ -112,12 +113,11 @@ class handler(BaseHTTPRequestHandler):
                 ws_detail.cell(row, 5).value  = p.get('surveyName', '')
                 ws_detail.cell(row, 6).value  = p.get('workCode', '')
                 ws_detail.cell(row, 7).value  = p.get('workName', '')
-                ws_detail.cell(row, 8).value  = tango_label        # SUMIF 키
-                # I열(측량거리) 수식(=K+L) 유지 — 덮어쓰지 않음
+                ws_detail.cell(row, 8).value  = tango_label
                 ws_detail.cell(row, 10).value = p.get('tangoKm', 0)
                 ws_detail.cell(row, 11).value = p.get('exposedKm', 0)
                 ws_detail.cell(row, 12).value = p.get('probeKm', 0)
-                ws_detail.cell(row, 15).value = cost['contractCost']  # O(15): 낙찰가 (절사 없음)
+                ws_detail.cell(row, 15).value = cost['contractCost']  # O(15): 낙찰가
                 ws_detail.cell(row, 16).value = p.get('remark', '')
 
             # ── 원가계산서 값 주입 ──────────────────────────────────
@@ -131,11 +131,16 @@ class handler(BaseHTTPRequestHandler):
                 )
                 start_col = 13 + i * 3
                 ws_cost.cell(5, start_col).value = p.get('workCode', '')
+
+                # 금액 주입
                 for row_num, key in COST_ROW_MAP.items():
                     val = cost.get(key, 0)
                     ws_cost.cell(row_num, start_col).value     = val
                     ws_cost.cell(row_num, start_col + 1).value = 0
                     ws_cost.cell(row_num, start_col + 2).value = val
+
+                # E23: 안전관리비 비율 표시 (수도권 1.78% / 기타 1.64%)
+                ws_cost.cell(23, 5).value = cost['safetyRate']
 
             output = BytesIO()
             wb.save(output)
