@@ -18,7 +18,6 @@ RATIOS = {
     'contract': 0.749, 'vat': 0.10,
 }
 
-# 탱고 사업구분 텍스트 매핑 (세부내역 H열에 입력될 값 → 갑지 SUMIF 키와 일치해야 함)
 TANGO_LABEL_MAP = {
     'A-2':  '[A-2. 인입관로] 인입 관로 공급',
     'B-3a': '[B-3. 기간선로] 신설/증설/보강',
@@ -48,15 +47,18 @@ def calc_cost(exposed_km, probe_km, method, survey_name=''):
     gm = int((lt + et) * RATIOS['genMgmt'])
     pr = int((lt + et + gm) * RATIOS['profit'])
     wc = lt + et + gm + pr
-    ct = int((wc - sa) * RATIOS['contract']) + sa
-    fi = (ct // 1000) * 1000
+    ct = int((wc - sa) * RATIOS['contract']) + sa   # 낙찰가 (절사 없음)
+    fi = (ct // 1000) * 1000                         # 공사비합계 (천단위 절사)
     vt = round(fi * RATIOS['vat'])
     return {
         'directLabor': dl, 'indirectLabor': il, 'laborTotal': lt,
         'machineExp': me, 'accident': ac, 'employment': em,
         'pension': pe, 'health': he, 'safety': sa, 'elderly': el,
         'expTotal': et, 'generalMgmt': gm, 'profit': pr,
-        'workCost': wc, 'finalCost': fi, 'vat': vt, 'totalWithVat': fi + vt,
+        'workCost': wc,
+        'contractCost': ct,   # 행32: 낙찰가 (절사 없음)
+        'finalCost': fi,      # 행40: 공사비합계 (천단위 절사)
+        'vat': vt, 'totalWithVat': fi + vt,
     }
 
 COST_ROW_MAP = {
@@ -64,8 +66,10 @@ COST_ROW_MAP = {
     19: 'accident', 20: 'employment', 21: 'pension',
     22: 'health', 23: 'safety', 24: 'elderly',
     27: 'machineExp', 28: 'expTotal', 29: 'generalMgmt',
-    30: 'profit', 31: 'workCost', 32: 'finalCost',
-    40: 'finalCost', 41: 'vat', 42: 'totalWithVat',
+    30: 'profit', 31: 'workCost',
+    32: 'contractCost',   # 낙찰가 (절사 없음)
+    40: 'finalCost',      # 공사비합계 (천단위 절사)
+    41: 'vat', 42: 'totalWithVat',
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -90,13 +94,10 @@ class handler(BaseHTTPRequestHandler):
             wb = openpyxl.load_workbook(TEMPLATE_PATH)
 
             # ── 세부내역 시트 값 주입 ────────────────────────────────
-            # 데이터 시작 행: 5행, 최대 16건 (5~20행)
-            # I열(측량거리)은 템플릿에 =K+L 수식이 있으므로 덮어쓰지 않음
-            # H열(사업구분)에 갑지 SUMIF 키와 일치하는 텍스트를 입력해야 갑지에 값이 표시됨
             ws_detail = wb['세부내역']
             for i, p in enumerate(projects):
                 if i >= 16:
-                    break  # 최대 16건
+                    break
                 row = 5 + i
                 tango = p.get('tangoType', '')
                 tango_label = TANGO_LABEL_MAP.get(tango, tango)
@@ -106,22 +107,18 @@ class handler(BaseHTTPRequestHandler):
                     p.get('method', 'probe'),
                     p.get('surveyName', '')
                 )
-
-                ws_detail.cell(row, 3).value  = p.get('division', '')      # C(3): 구분
-                ws_detail.cell(row, 4).value  = p.get('region', '')        # D(4): 지역
-                ws_detail.cell(row, 5).value  = p.get('surveyName', '')    # E(5): 공공측량명칭
-                ws_detail.cell(row, 6).value  = p.get('workCode', '')      # F(6): 공사코드
-                ws_detail.cell(row, 7).value  = p.get('workName', '')      # G(7): 공사명
-                ws_detail.cell(row, 8).value  = tango_label                # H(8): 사업구분(Tango) ← SUMIF 키
-                # I(9): 수식(=K+L) 유지 — 덮어쓰지 않음
-                ws_detail.cell(row, 10).value = p.get('tangoKm', 0)       # J(10): Tango 굴착거리
-                ws_detail.cell(row, 11).value = p.get('exposedKm', 0)     # K(11): 노출측량
-                ws_detail.cell(row, 12).value = p.get('probeKm', 0)       # L(12): 탐사측량
-                ws_detail.cell(row, 15).value = cost['finalCost']          # O(15): 원가계산서 공사비금액(낙찰가)
-                ws_detail.cell(row, 16).value = p.get('remark', '')        # P(16): 비고
-
-            # ── 공공측량 갑지는 세부내역 SUMIF 수식으로 자동 계산됨 ──
-            # 별도 값 주입 불필요
+                ws_detail.cell(row, 3).value  = p.get('division', '')
+                ws_detail.cell(row, 4).value  = p.get('region', '')
+                ws_detail.cell(row, 5).value  = p.get('surveyName', '')
+                ws_detail.cell(row, 6).value  = p.get('workCode', '')
+                ws_detail.cell(row, 7).value  = p.get('workName', '')
+                ws_detail.cell(row, 8).value  = tango_label        # SUMIF 키
+                # I열(측량거리) 수식(=K+L) 유지 — 덮어쓰지 않음
+                ws_detail.cell(row, 10).value = p.get('tangoKm', 0)
+                ws_detail.cell(row, 11).value = p.get('exposedKm', 0)
+                ws_detail.cell(row, 12).value = p.get('probeKm', 0)
+                ws_detail.cell(row, 15).value = cost['contractCost']  # O(15): 낙찰가 (절사 없음)
+                ws_detail.cell(row, 16).value = p.get('remark', '')
 
             # ── 원가계산서 값 주입 ──────────────────────────────────
             ws_cost = wb['원가계산서']
@@ -132,13 +129,13 @@ class handler(BaseHTTPRequestHandler):
                     p.get('method', 'probe'),
                     p.get('surveyName', '')
                 )
-                start_col = 13 + i * 3  # M열(13)부터 3열씩
+                start_col = 13 + i * 3
                 ws_cost.cell(5, start_col).value = p.get('workCode', '')
                 for row_num, key in COST_ROW_MAP.items():
                     val = cost.get(key, 0)
-                    ws_cost.cell(row_num, start_col).value     = val   # Capex
-                    ws_cost.cell(row_num, start_col + 1).value = 0     # Opex
-                    ws_cost.cell(row_num, start_col + 2).value = val   # 계
+                    ws_cost.cell(row_num, start_col).value     = val
+                    ws_cost.cell(row_num, start_col + 1).value = 0
+                    ws_cost.cell(row_num, start_col + 2).value = val
 
             output = BytesIO()
             wb.save(output)
