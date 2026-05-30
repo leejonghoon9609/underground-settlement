@@ -419,7 +419,7 @@ function goTab(name) {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'list') renderList();
-  if (name === 'summary') renderSummary();
+  if (name === 'summary') renderSettlement(settlementProjects);
 }
 
 // ================================================================
