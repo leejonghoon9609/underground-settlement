@@ -562,14 +562,18 @@ function onFileSelect(file) {
       if (!sheetName) { showToast('❌ 세부내역 시트를 찾을 수 없습니다', true); return; }
       const ws = wb.Sheets[sheetName];
 
-      // 세부내역 1행에서 "(N월)" 패턴 찾기 (A~E열 탐색)
+      // 세부내역 1행~3행에서 "(N월)" 패턴 찾기 (전체 셀 탐색)
       uploadedMonth = '';
-      for (const col of ['A','B','C','D','E']) {
-        const cell = ws[col + '1'];
-        if (!cell) continue;
-        const m = String(cell.v).match(/(\d+)월/);
-        if (m) { uploadedMonth = String(m[1]).padStart(2, '0'); break; }
+      const colList = ['A','B','C','D','E','F','G','H'];
+      outer: for (const row of [1,2,3]) {
+        for (const col of colList) {
+          const cell = ws[col + row];
+          if (!cell || cell.v === null || cell.v === undefined) continue;
+          const m = String(cell.v).match(/[\(（]?(\d+)월[\)）]?/);
+          if (m) { uploadedMonth = String(m[1]).padStart(2, '0'); break outer; }
+        }
       }
+      console.log('추출된 월:', uploadedMonth);
 
       function gc(col, row) {
         const c = ws[col + row];
