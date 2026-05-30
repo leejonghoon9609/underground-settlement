@@ -4,99 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js">
-// ================================================================
-// 정산 현황 대시보드
-// ================================================================
-async function renderDashboard() {
-  const year = document.getElementById('dashYear').value;
-  const branchFilter = document.getElementById('dashBranch').value;
-  const el = document.getElementById('dashContent');
-  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><p>불러오는 중...</p></div>';
-
-  try {
-    const res = await fetch(SUPABASE_API + '?year=' + year);
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>데이터가 없습니다</p></div>';
-      return;
-    }
-
-    // 지사별 필터
-    const filtered = branchFilter
-      ? data.filter(p => (p.survey_name||'').includes(branchFilter))
-      : data;
-
-    // 월별 집계
-    const months = {};
-    filtered.forEach(p => {
-      const m = p.month || '00';
-      if (!months[m]) months[m] = {count:0, dist:0, cost:0, carried:0};
-      months[m].count++;
-      months[m].dist += (p.exposed_km||0) + (p.probe_km||0);
-      months[m].cost += p.final_cost||0;
-      if (p.is_carried_over) months[m].carried++;
-    });
-
-    // 전체 합계
-    const totalCount = filtered.length;
-    const totalDist = filtered.reduce((s,p)=>s+(p.exposed_km||0)+(p.probe_km||0),0);
-    const totalCost = filtered.reduce((s,p)=>s+(p.final_cost||0),0);
-    const totalVat = filtered.reduce((s,p)=>s+(p.total_with_vat||0),0);
-
-    let html = `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-      <div style="background:#f0f9ff;border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">총 건수</div>
-        <div style="font-size:24px;font-weight:700;color:#0369a1;">${totalCount}건</div>
-      </div>
-      <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">총 측량거리</div>
-        <div style="font-size:24px;font-weight:700;color:#15803d;">${totalDist.toFixed(3)}km</div>
-      </div>
-      <div style="background:#fefce8;border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">정산금액 합계</div>
-        <div style="font-size:20px;font-weight:700;color:#854d0e;">${fmt(totalCost)}원</div>
-      </div>
-      <div style="background:#fdf4ff;border-radius:12px;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">부가세 포함</div>
-        <div style="font-size:20px;font-weight:700;color:#7c3aed;">${fmt(totalVat)}원</div>
-      </div>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="background:#f8fafc;">
-          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">월</th>
-          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">건수</th>
-          <th style="padding:10px;text-align:right;border-bottom:2px solid #e2e8f0;">측량거리(km)</th>
-          <th style="padding:10px;text-align:right;border-bottom:2px solid #e2e8f0;">정산금액</th>
-          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">이월</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-    const sortedMonths = Object.keys(months).sort();
-    sortedMonths.forEach(m => {
-      const d = months[m];
-      html += `<tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:10px;text-align:center;font-weight:600;">${m}월</td>
-        <td style="padding:10px;text-align:center;">${d.count}건</td>
-        <td style="padding:10px;text-align:right;color:#15803d;">${d.dist.toFixed(3)}</td>
-        <td style="padding:10px;text-align:right;color:#854d0e;font-weight:600;">${fmt(d.cost)}원</td>
-        <td style="padding:10px;text-align:center;">${d.carried > 0 ? '<span style="color:#dc2626;font-weight:600;">'+d.carried+'건</span>' : '-'}</td>
-      </tr>`;
-    });
-
-    html += `</tbody></table>`;
-    el.innerHTML = html;
-
-  } catch(e) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><p>데이터 로드 실패</p></div>';
-    console.error(e);
-  }
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
@@ -1331,6 +1239,98 @@ updateBadge();
 renderList();
 // 페이지 로드시 Supabase에서 최신 데이터 로드
 loadFromSupabase();
+
+// ================================================================
+// 정산 현황 대시보드
+// ================================================================
+async function renderDashboard() {
+  const year = document.getElementById('dashYear').value;
+  const branchFilter = document.getElementById('dashBranch').value;
+  const el = document.getElementById('dashContent');
+  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><p>불러오는 중...</p></div>';
+
+  try {
+    const res = await fetch(SUPABASE_API + '?year=' + year);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>데이터가 없습니다</p></div>';
+      return;
+    }
+
+    // 지사별 필터
+    const filtered = branchFilter
+      ? data.filter(p => (p.survey_name||'').includes(branchFilter))
+      : data;
+
+    // 월별 집계
+    const months = {};
+    filtered.forEach(p => {
+      const m = p.month || '00';
+      if (!months[m]) months[m] = {count:0, dist:0, cost:0, carried:0};
+      months[m].count++;
+      months[m].dist += (p.exposed_km||0) + (p.probe_km||0);
+      months[m].cost += p.final_cost||0;
+      if (p.is_carried_over) months[m].carried++;
+    });
+
+    // 전체 합계
+    const totalCount = filtered.length;
+    const totalDist = filtered.reduce((s,p)=>s+(p.exposed_km||0)+(p.probe_km||0),0);
+    const totalCost = filtered.reduce((s,p)=>s+(p.final_cost||0),0);
+    const totalVat = filtered.reduce((s,p)=>s+(p.total_with_vat||0),0);
+
+    let html = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+      <div style="background:#f0f9ff;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">총 건수</div>
+        <div style="font-size:24px;font-weight:700;color:#0369a1;">${totalCount}건</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">총 측량거리</div>
+        <div style="font-size:24px;font-weight:700;color:#15803d;">${totalDist.toFixed(3)}km</div>
+      </div>
+      <div style="background:#fefce8;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">정산금액 합계</div>
+        <div style="font-size:20px;font-weight:700;color:#854d0e;">${fmt(totalCost)}원</div>
+      </div>
+      <div style="background:#fdf4ff;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">부가세 포함</div>
+        <div style="font-size:20px;font-weight:700;color:#7c3aed;">${fmt(totalVat)}원</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">월</th>
+          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">건수</th>
+          <th style="padding:10px;text-align:right;border-bottom:2px solid #e2e8f0;">측량거리(km)</th>
+          <th style="padding:10px;text-align:right;border-bottom:2px solid #e2e8f0;">정산금액</th>
+          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">이월</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    const sortedMonths = Object.keys(months).sort();
+    sortedMonths.forEach(m => {
+      const d = months[m];
+      html += `<tr style="border-bottom:1px solid #f1f5f9;">
+        <td style="padding:10px;text-align:center;font-weight:600;">${m}월</td>
+        <td style="padding:10px;text-align:center;">${d.count}건</td>
+        <td style="padding:10px;text-align:right;color:#15803d;">${d.dist.toFixed(3)}</td>
+        <td style="padding:10px;text-align:right;color:#854d0e;font-weight:600;">${fmt(d.cost)}원</td>
+        <td style="padding:10px;text-align:center;">${d.carried > 0 ? '<span style="color:#dc2626;font-weight:600;">'+d.carried+'건</span>' : '-'}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    el.innerHTML = html;
+
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><p>데이터 로드 실패</p></div>';
+    console.error(e);
+  }
+}
+
 </script>
 </body>
 </html>
