@@ -1014,8 +1014,8 @@ async function downloadSettlementExcel() {
           }
           return '';
         })(),
-        year: String(new Date().getFullYear()),
-        month: uploadedMonth || String(new Date().getMonth()+1)
+        year: currentYM.split('-')[0],
+        month: currentYM.split('-')[1]
       })
     });
     const text = await res.text();
@@ -1031,9 +1031,9 @@ async function downloadSettlementExcel() {
       const m = (p.surveyName || '').match(/[(（]([^)）]*지사)[)）]/);
       if (m) { branchName = m[1]; break; }
     }
-    const mm = uploadedMonth || String(new Date().getMonth()+1).padStart(2,'0');
+    const [dlYear, dlMonth] = currentYM.split('-');
     a.href = url;
-    a.download = '정산내역서_' + new Date().getFullYear() + '년' + mm + '월_' + branchName + '_측량.xlsx';
+    a.download = '정산내역서_' + dlYear + '년' + dlMonth + '월_' + branchName + '_측량.xlsx';
     a.click();
     URL.revokeObjectURL(url);
     showToast('✅ 다운로드 완료!');
