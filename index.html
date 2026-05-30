@@ -4,7 +4,99 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js">
+// ================================================================
+// 정산 현황 대시보드
+// ================================================================
+async function renderDashboard() {
+  const year = document.getElementById('dashYear').value;
+  const branchFilter = document.getElementById('dashBranch').value;
+  const el = document.getElementById('dashContent');
+  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><p>불러오는 중...</p></div>';
+
+  try {
+    const res = await fetch(SUPABASE_API + '?year=' + year);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>데이터가 없습니다</p></div>';
+      return;
+    }
+
+    // 지사별 필터
+    const filtered = branchFilter
+      ? data.filter(p => (p.survey_name||'').includes(branchFilter))
+      : data;
+
+    // 월별 집계
+    const months = {};
+    filtered.forEach(p => {
+      const m = p.month || '00';
+      if (!months[m]) months[m] = {count:0, dist:0, cost:0, carried:0};
+      months[m].count++;
+      months[m].dist += (p.exposed_km||0) + (p.probe_km||0);
+      months[m].cost += p.final_cost||0;
+      if (p.is_carried_over) months[m].carried++;
+    });
+
+    // 전체 합계
+    const totalCount = filtered.length;
+    const totalDist = filtered.reduce((s,p)=>s+(p.exposed_km||0)+(p.probe_km||0),0);
+    const totalCost = filtered.reduce((s,p)=>s+(p.final_cost||0),0);
+    const totalVat = filtered.reduce((s,p)=>s+(p.total_with_vat||0),0);
+
+    let html = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+      <div style="background:#f0f9ff;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">총 건수</div>
+        <div style="font-size:24px;font-weight:700;color:#0369a1;">${totalCount}건</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">총 측량거리</div>
+        <div style="font-size:24px;font-weight:700;color:#15803d;">${totalDist.toFixed(3)}km</div>
+      </div>
+      <div style="background:#fefce8;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">정산금액 합계</div>
+        <div style="font-size:20px;font-weight:700;color:#854d0e;">${fmt(totalCost)}원</div>
+      </div>
+      <div style="background:#fdf4ff;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">부가세 포함</div>
+        <div style="font-size:20px;font-weight:700;color:#7c3aed;">${fmt(totalVat)}원</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">월</th>
+          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">건수</th>
+          <th style="padding:10px;text-align:right;border-bottom:2px solid #e2e8f0;">측량거리(km)</th>
+          <th style="padding:10px;text-align:right;border-bottom:2px solid #e2e8f0;">정산금액</th>
+          <th style="padding:10px;text-align:center;border-bottom:2px solid #e2e8f0;">이월</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    const sortedMonths = Object.keys(months).sort();
+    sortedMonths.forEach(m => {
+      const d = months[m];
+      html += `<tr style="border-bottom:1px solid #f1f5f9;">
+        <td style="padding:10px;text-align:center;font-weight:600;">${m}월</td>
+        <td style="padding:10px;text-align:center;">${d.count}건</td>
+        <td style="padding:10px;text-align:right;color:#15803d;">${d.dist.toFixed(3)}</td>
+        <td style="padding:10px;text-align:right;color:#854d0e;font-weight:600;">${fmt(d.cost)}원</td>
+        <td style="padding:10px;text-align:center;">${d.carried > 0 ? '<span style="color:#dc2626;font-weight:600;">'+d.carried+'건</span>' : '-'}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    el.innerHTML = html;
+
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><p>데이터 로드 실패</p></div>';
+    console.error(e);
+  }
+}
+
+</script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
@@ -171,6 +263,7 @@ select option{background:#fff;}
     <button class="tab" onclick="goTab('input')">📝 직접 입력</button>
     <button class="tab" onclick="goTab('list')">📋 사업 목록</button>
     <button class="tab" onclick="goTab('summary')">🖨️ 정산내역서 출력</button>
+    <button class="tab" onclick="goTab('dashboard')">📊 정산 현황</button>
   </div>
 
   <!-- ===== TAB: 양식 업로드 ===== -->
@@ -342,9 +435,37 @@ select option{background:#fff;}
   </div>
 </div>
 
+  <!-- ===== TAB: 정산 현황 ===== -->
+  <div class="tab-content" id="tab-dashboard">
+    <div class="card">
+      <div class="card-title">📊 정산 현황</div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="dashYear" onchange="renderDashboard()" style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+          <option value="2026">2026년</option>
+          <option value="2025">2025년</option>
+        </select>
+        <select id="dashBranch" onchange="renderDashboard()" style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+          <option value="">전체 지사</option>
+          <option value="수도권지사">수도권지사</option>
+          <option value="경북지사">경북지사</option>
+        </select>
+      </div>
+      <div id="dashContent">
+        <div class="empty"><div class="empty-icon">📊</div><p>데이터를 불러오는 중...</p></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
+// ================================================================
+// Supabase 설정
+// ================================================================
+const SUPABASE_API = 'https://underground-settlement.vercel.app/api/projects';
+
 // ================================================================
 // 상수
 // ================================================================
@@ -374,6 +495,76 @@ const TANGO_LIST = [
 // ================================================================
 let projects = [];
 try { projects = JSON.parse(localStorage.getItem('ugs_projects') || '[]'); } catch(e) {}
+
+// Supabase에서 데이터 로드
+async function loadFromSupabase() {
+  try {
+    const year = currentYM ? currentYM.split('-')[0] : new Date().getFullYear().toString();
+    const res = await fetch(SUPABASE_API + '?year=' + year);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      projects = data.map(p => ({
+        id: p.id,
+        dbId: p.id,
+        year: p.year,
+        month: p.month,
+        gubun: p.gubun || '',
+        region: p.region || '',
+        surveyName: p.survey_name || '',
+        workCode: p.work_code || '',
+        workName: p.work_name || '',
+        tangoType: p.tango_type || '',
+        tangoKm: p.tango_km || 0,
+        exposedKm: p.exposed_km || 0,
+        probeKm: p.probe_km || 0,
+        method: p.method || 'probe',
+        finalCost: p.final_cost || 0,
+        vat: p.vat || 0,
+        totalWithVat: p.total_with_vat || 0,
+        remark: p.remark || '',
+        isCarriedOver: p.is_carried_over || false,
+        carriedOverFrom: p.carried_over_from || '',
+        ...calcCost(p.exposed_km || 0, p.probe_km || 0, p.method || 'probe', p.survey_name || ''),
+      }));
+      save();
+      updateBadge();
+      renderList();
+    }
+  } catch(e) {
+    console.error('Supabase 로드 실패:', e);
+  }
+}
+
+// Supabase에 저장
+async function saveToSupabase(projectList, year, month) {
+  try {
+    await fetch(SUPABASE_API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'save',
+        projects: projectList,
+        year: year,
+        month: month,
+      })
+    });
+  } catch(e) {
+    console.error('Supabase 저장 실패:', e);
+  }
+}
+
+// Supabase에서 삭제
+async function deleteFromSupabase(dbId) {
+  try {
+    await fetch(SUPABASE_API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'delete', id: dbId })
+    });
+  } catch(e) {
+    console.error('Supabase 삭제 실패:', e);
+  }
+}
 let uploadedRows = [];
 let uploadedMonth = ''; // 업로드 엑셀에서 추출한 월
 let settlementProjects = []; // 정산내역서로 보낸 항목
@@ -416,12 +607,13 @@ function calcCost(exposedKm, probeKm, method, surveyName) {
 // ================================================================
 function goTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', ['upload','input','list','summary'][i] === name);
+    t.classList.toggle('active', ['upload','input','list','summary','dashboard'][i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'list') renderList();
   if (name === 'summary') renderSettlement(settlementProjects);
+  if (name === 'dashboard') renderDashboard();
 }
 
 // ================================================================
@@ -508,6 +700,9 @@ function addProject() {
     ...cost,
   });
   save();
+  // Supabase에도 저장
+  const [addYear, addMonth] = currentYM.split('-');
+  saveToSupabase([projects[projects.length-1]], addYear, addMonth);
   resetForm();
   showToast('✅ 사업이 추가되었습니다');
   updateBadge();
@@ -625,6 +820,9 @@ function onFileSelect(file) {
 function addAllUploaded() {
   projects.push(...uploadedRows);
   save(); updateBadge();
+  // Supabase에 일괄 저장
+  const [upYear, upMonth] = currentYM.split('-');
+  saveToSupabase(uploadedRows, upYear, upMonth);
   uploadedRows = [];
   document.getElementById('previewBox').style.display = 'none';
   document.getElementById('fileInput').value = '';
@@ -1131,6 +1329,8 @@ function showToast(msg, isErr) {
 // 초기화
 updateBadge();
 renderList();
+// 페이지 로드시 Supabase에서 최신 데이터 로드
+loadFromSupabase();
 </script>
 </body>
 </html>
