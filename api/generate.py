@@ -13,20 +13,21 @@ RATES = {
 }
 RATIOS = {
     'indirectLabor': 0.10, 'accident': 0.0356, 'employment': 0.0101,
-    'pension': 0.0475, 'health': 0.03595,
+    'pension': 0.0475, 'health': 0.03595, 'safety': 0.0178,
     'elderly': 0.1314, 'genMgmt': 0.03, 'profit': 0.135,
     'contract': 0.749, 'vat': 0.10,
 }
 
-TANGO_LABEL_MAP = {
-    'A-2':  '[A-2. 인입관로] 인입 관로 공급',
-    'B-3a': '[B-3. 기간선로] 신설/증설/보강',
-    'B-3b': '[B-3. 기간선로] 신축국사 연계 간선선로',
-    'C-2':  '[C-2. 프론트홀 선로(5G)] 용량증설(5G)',
-    'E-4a': '[E-4. 지장이설] 원인자 공사',
-    'E-4b': '[E-4. 지장이설] 지중 인프라 확보',
-    'E-4c': '[E-4. 지장이설] 순수 지장 이설',
-    'G-3':  '[G-3. 프론트홀 선로(4G)] 용량증설(4G)',
+# 세부내역 시트: tangoType → 고정 행 번호
+TANGO_ROW_MAP = {
+    'A-2': 4,   # [A-2. 인입관로] 인입 관로 공급
+    'B-3a': 5,  # [B-3. 기간선로] 신설/증설/보강
+    'B-3b': 6,  # [B-3. 기간선로] 신축국사 연계 간선선로
+    'C-2': 7,   # [C-2. 프론트홀 선로(5G)] 용량증설(5G)
+    'E-4a': 8,  # [E-4. 지장이설] 원인자 공사
+    'E-4b': 9,  # [E-4. 지장이설] 지중 인프라 확보
+    'E-4c': 10, # [E-4. 지장이설] 순수 지장 이설
+    'G-3': 11,  # [G-3. 프론트홀 선로(4G)] 용량증설(4G)
 }
 
 def calc_cost(exposed_km, probe_km, method, survey_name=''):
@@ -47,19 +48,15 @@ def calc_cost(exposed_km, probe_km, method, survey_name=''):
     gm = int((lt + et) * RATIOS['genMgmt'])
     pr = int((lt + et + gm) * RATIOS['profit'])
     wc = lt + et + gm + pr
-    ct = int((wc - sa) * RATIOS['contract']) + sa   # 낙찰가 (절사 없음)
-    fi = (ct // 1000) * 1000                         # 공사비합계 (천단위 절사)
+    ct = int((wc - sa) * RATIOS['contract']) + sa
+    fi = (ct // 1000) * 1000
     vt = round(fi * RATIOS['vat'])
     return {
         'directLabor': dl, 'indirectLabor': il, 'laborTotal': lt,
         'machineExp': me, 'accident': ac, 'employment': em,
         'pension': pe, 'health': he, 'safety': sa, 'elderly': el,
         'expTotal': et, 'generalMgmt': gm, 'profit': pr,
-        'workCost': wc,
-        'contractCost': ct,   # 행32: 낙찰가 (절사 없음)
-        'finalCost': fi,      # 행40: 공사비합계 (천단위 절사)
-        'vat': vt, 'totalWithVat': fi + vt,
-        'safetyRate': safety_rate,  # E23 비율 표시용
+        'workCost': wc, 'finalCost': fi, 'vat': vt, 'totalWithVat': fi + vt,
     }
 
 COST_ROW_MAP = {
@@ -67,10 +64,8 @@ COST_ROW_MAP = {
     19: 'accident', 20: 'employment', 21: 'pension',
     22: 'health', 23: 'safety', 24: 'elderly',
     27: 'machineExp', 28: 'expTotal', 29: 'generalMgmt',
-    30: 'profit', 31: 'workCost',
-    32: 'contractCost',   # 낙찰가 (절사 없음)
-    40: 'finalCost',      # 공사비합계 (천단위 절사)
-    41: 'vat', 42: 'totalWithVat',
+    30: 'profit', 31: 'workCost', 32: 'finalCost',
+    40: 'finalCost', 41: 'vat', 42: 'totalWithVat',
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -94,53 +89,33 @@ class handler(BaseHTTPRequestHandler):
 
             wb = openpyxl.load_workbook(TEMPLATE_PATH)
 
-            # ── 세부내역 시트 값 주입 ────────────────────────────────
+            # 세부내역 값 주입 (tangoType 기준 고정 행)
             ws_detail = wb['세부내역']
-            for i, p in enumerate(projects):
-                if i >= 16:
-                    break
-                row = 5 + i
+            for p in projects:
                 tango = p.get('tangoType', '')
-                tango_label = TANGO_LABEL_MAP.get(tango, tango)
-                cost = calc_cost(
-                    p.get('exposedKm', 0),
-                    p.get('probeKm', 0),
-                    p.get('method', 'probe'),
-                    p.get('surveyName', '')
-                )
-                ws_detail.cell(row, 3).value  = p.get('division', '')
-                ws_detail.cell(row, 4).value  = p.get('region', '')
-                ws_detail.cell(row, 5).value  = p.get('surveyName', '')
-                ws_detail.cell(row, 6).value  = p.get('workCode', '')
-                ws_detail.cell(row, 7).value  = p.get('workName', '')
-                ws_detail.cell(row, 8).value  = tango_label
-                ws_detail.cell(row, 10).value = p.get('tangoKm', 0)
-                ws_detail.cell(row, 11).value = p.get('exposedKm', 0)
-                ws_detail.cell(row, 12).value = p.get('probeKm', 0)
-                ws_detail.cell(row, 15).value = cost['contractCost']  # O(15): 낙찰가
-                ws_detail.cell(row, 16).value = p.get('remark', '')
+                row = TANGO_ROW_MAP.get(tango)
+                if row is None:
+                    continue
+                cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'], p.get('surveyName', ''))
+                survey_km = p.get('exposedKm', 0) + p.get('probeKm', 0)
+                ws_detail.cell(row, 2).value = survey_km           # B: 측량거리
+                ws_detail.cell(row, 3).value = p.get('tangoKm', 0) # C: Tango굴착거리
+                ws_detail.cell(row, 4).value = p.get('exposedKm', 0) # D: 노출측량
+                ws_detail.cell(row, 5).value = p.get('probeKm', 0)   # E: 탐사측량
+                ws_detail.cell(row, 7).value = cost['finalCost']      # G: 정산금액
+                ws_detail.cell(row, 9).value = p.get('remark', '')    # I: 비고
 
-            # ── 원가계산서 값 주입 ──────────────────────────────────
+            # 원가계산서 값 주입
             ws_cost = wb['원가계산서']
             for i, p in enumerate(projects):
-                cost = calc_cost(
-                    p.get('exposedKm', 0),
-                    p.get('probeKm', 0),
-                    p.get('method', 'probe'),
-                    p.get('surveyName', '')
-                )
+                cost = calc_cost(p['exposedKm'], p['probeKm'], p['method'], p.get('surveyName', ''))
                 start_col = 13 + i * 3
-                ws_cost.cell(5, start_col).value = p.get('workCode', '')
-
-                # 금액 주입
-                for row_num, key in COST_ROW_MAP.items():
+                ws_cost.cell(5, start_col).value = f"{i+1}. {p.get('workCode', '')}"
+                for row, key in COST_ROW_MAP.items():
                     val = cost.get(key, 0)
-                    ws_cost.cell(row_num, start_col).value     = val
-                    ws_cost.cell(row_num, start_col + 1).value = 0
-                    ws_cost.cell(row_num, start_col + 2).value = val
-
-                # E23: 안전관리비 비율 표시 (수도권 1.78% / 기타 1.64%)
-                ws_cost.cell(23, 5).value = cost['safetyRate']
+                    ws_cost.cell(row, start_col).value     = val
+                    ws_cost.cell(row, start_col + 1).value = 0
+                    ws_cost.cell(row, start_col + 2).value = val
 
             output = BytesIO()
             wb.save(output)
