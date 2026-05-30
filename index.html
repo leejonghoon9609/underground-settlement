@@ -649,33 +649,87 @@ function cancelUpload() {
 // ================================================================
 // 목록 렌더
 // ================================================================
+function getBranch(p) {
+  const m = (p.surveyName || '').match(/[(（]([^)）]*지사)[)）]/);
+  return m ? m[1] : '기타';
+}
+
 function renderList() {
   const el = document.getElementById('projList');
   if (projects.length === 0) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>입력된 사업이 없습니다</p></div>';
     return;
   }
-  el.innerHTML = '<div class="proj-list">' +
-    projects.map((p,i) =>
-      '<div>' +
-      '<div class="proj-item" onclick="toggleDetail(' + p.id + ')">' +
-        '<div class="proj-num">' + (i+1) + '</div>' +
-        '<div>' +
-          '<div class="proj-name">' + p.workName + '</div>' +
-          '<div class="proj-meta">' + p.gubun + ' · ' + p.region + ' · ' + p.workCode +
-            ' · <span style="color:' + (p.method==='realtime'?'#15803d':'#854d0e') + ';font-weight:600;">' +
-            (p.method==='realtime'?'실시간':'탐사') + '</span>' +
-            ' · ' + ((p.exposedKm||0)+(p.probeKm||0)).toFixed(3) + 'km</div>' +
-        '</div>' +
-        '<div class="proj-amount">' + fmt(p.finalCost) + '원</div>' +
-        '<div class="proj-actions">' +
-          '<button class="icon-btn del" onclick="event.stopPropagation();delProject(' + p.id + ')" title="삭제">🗑️</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="detail-panel" id="dp-' + p.id + '">' + detailHTML(p) + '</div>' +
-      '</div>'
-    ).join('') + '</div>';
+
+  // 지사별 그룹핑
+  const groups = {};
+  projects.forEach((p, i) => {
+    const b = getBranch(p);
+    if (!groups[b]) groups[b] = [];
+    groups[b].push({ p, i });
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(function(entry) {
+    const branch = entry[0];
+    const items = entry[1];
+    const bid = 'b' + branch.split('').map(function(c){ return c.charCodeAt(0); }).join('');
+
+    html += '<div style="margin-bottom:1.2rem;">';
+    html += '<div style="display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px 10px 0 0;padding:10px 16px;cursor:pointer;" onclick="toggleBranchCheck(this, \'' + bid + '\')">';
+    html += '<input type="checkbox" id="cb' + bid + '" style="width:16px;height:16px;cursor:pointer;" onclick="event.stopPropagation()" onchange="onBranchChk(this, \'' + bid + '\')">';
+    html += '<span style="font-size:13px;font-weight:700;color:#2563eb;">📁 ' + branch + '</span>';
+    html += '<span style="font-size:12px;color:#64748b;margin-left:4px;">(' + items.length + '건)</span>';
+    html += '</div>';
+    html += '<div style="overflow-x:auto;border:1px solid #bfdbfe;border-top:none;border-radius:0 0 10px 10px;">';
+    html += '<table class="tbl" style="margin:0;">';
+    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th>삭제</th></tr></thead>';
+    html += '<tbody>';
+    items.forEach(function(item) {
+      const p = item.p;
+      const i = item.i;
+      const dist = ((p.exposedKm || 0) + (p.probeKm || 0)).toFixed(3);
+      html += '<tr>';
+      html += '<td class="ctr"><input type="checkbox" class="proj-chk" data-bid="' + bid + '" data-id="' + p.id + '" style="width:15px;height:15px;" onchange="onItemChk(\'' + bid + '\')">';
+      html += '</td>';
+      html += '<td class="ctr">' + (i + 1) + '</td>';
+      html += '<td style="font-size:11px;">' + (p.workCode || '-') + '</td>';
+      html += '<td style="font-size:11px;white-space:nowrap;">' + (p.surveyName || '-') + '</td>';
+      html += '<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.workName || '') + '">' + (p.workName || '-') + '</td>';
+      html += '<td style="font-size:11px;">' + (p.tangoType || '-') + '</td>';
+      html += '<td class="num">' + dist + '</td>';
+      html += '<td class="num" style="color:#059669;font-weight:700;">' + fmt(p.finalCost) + '원</td>';
+      html += '<td class="ctr"><button class="icon-btn del" onclick="delProject(' + p.id + ')">🗑️</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+  });
+
+  el.innerHTML = html;
 }
+
+function toggleBranchCheck(el, bid) {
+  const chk = document.getElementById('cb' + bid);
+  if (!chk) return;
+  chk.checked = !chk.checked;
+  document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]').forEach(function(c) { c.checked = chk.checked; });
+}
+
+function onBranchChk(chk, bid) {
+  document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]').forEach(function(c) { c.checked = chk.checked; });
+}
+
+function onItemChk(bid) {
+  const all = document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]');
+  const checked = document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]:checked');
+  const chk = document.getElementById('cb' + bid);
+  if (chk) chk.checked = all.length > 0 && all.length === checked.length;
+}
+
+function getCheckedIds() {
+  return Array.from(document.querySelectorAll('.proj-chk:checked')).map(function(el) { return Number(el.dataset.id); });
+}
+
 
 function detailHTML(p) {
   const items = [
