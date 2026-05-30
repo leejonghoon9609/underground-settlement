@@ -3,550 +3,854 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>연차 관리 시스템</title>
+<title>지하시설물 통신관로 조사 및 측량 정산 시스템</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+
 <style>
-  :root {
-    --primary: #1D9E75;
-    --primary-light: #E1F5EE;
-    --primary-dark: #085041;
-    --blue: #378ADD;
-    --blue-light: #E6F1FB;
-    --blue-dark: #0C447C;
-    --amber: #BA7517;
-    --amber-light: #FAEEDA;
-    --red: #E24B4A;
-    --red-light: #FCEBEB;
-    --red-dark: #791F1F;
-    --gray-50: #F8F8F8;
-    --gray-100: #F1F1F1;
-    --gray-200: #E0E0E0;
-    --gray-400: #9E9E9E;
-    --gray-600: #5F5F5F;
-    --gray-900: #1A1A1A;
-    --white: #ffffff;
-    --radius: 10px;
-    --radius-sm: 6px;
-    --shadow: 0 1px 4px rgba(0,0,0,0.07);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background: var(--gray-50); color: var(--gray-900); min-height: 100vh; }
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:#f4f6fa;color:#1e293b;min-height:100vh;}
 
-  /* Layout */
-  .app { display: flex; min-height: 100vh; }
-  .sidebar { width: 220px; background: var(--white); border-right: 1px solid var(--gray-200); display: flex; flex-direction: column; padding: 24px 0; position: fixed; height: 100vh; }
-  .main { margin-left: 220px; flex: 1; padding: 28px; }
-  .logo { padding: 0 20px 24px; border-bottom: 1px solid var(--gray-100); margin-bottom: 16px; }
-  .logo-title { font-size: 16px; font-weight: 700; color: var(--primary-dark); }
-  .logo-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+/* HEADER */
+header{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text{font-size:14px;font-weight:700;}
+.logo-sub{font-size:11px;color:#64748b;}
+.hdr-badges{display:flex;gap:8px;align-items:center;}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;border:1px solid #e2e8f0;color:#64748b;}
+.badge.live{border-color:#059669;color:#059669;}
+.badge.live::before{content:'● ';font-size:8px;}
 
-  /* Sidebar nav */
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; color: var(--gray-600); cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; }
-  .nav-item:hover { background: var(--gray-50); color: var(--gray-900); }
-  .nav-item.active { background: var(--primary-light); color: var(--primary-dark); border-left-color: var(--primary); font-weight: 600; }
-  .nav-icon { font-size: 15px; }
-  .nav-section { font-size: 10px; color: var(--gray-400); padding: 12px 20px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+/* TABS */
+.container{max-width:1400px;margin:0 auto;padding:1.5rem 2rem;}
+.tabs{display:flex;gap:4px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:4px;width:fit-content;margin-bottom:1.5rem;}
+.tab{padding:7px 18px;border-radius:7px;border:none;background:transparent;color:#64748b;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;transition:all .15s;}
+.tab.active{background:#2563eb;color:#fff;font-weight:500;}
+.tab:hover:not(.active){background:#f1f5f9;color:#1e293b;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
 
-  /* Role switch */
-  .role-bar { display: flex; gap: 6px; padding: 0 20px; margin-bottom: 16px; }
-  .role-btn { flex: 1; padding: 6px 0; font-size: 11px; border-radius: 20px; border: 1px solid var(--gray-200); background: none; cursor: pointer; color: var(--gray-600); font-family: inherit; }
-  .role-btn.active { background: var(--primary); color: var(--white); border-color: var(--primary); font-weight: 600; }
+/* CARD */
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.5rem;margin-bottom:1.2rem;}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#2563eb;margin-bottom:1.2rem;display:flex;align-items:center;gap:8px;}
+.card-title::after{content:'';flex:1;height:1px;background:#e2e8f0;}
 
-  /* Header */
-  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-  .page-title { font-size: 20px; font-weight: 700; color: var(--gray-900); }
-  .page-sub { font-size: 13px; color: var(--gray-400); margin-top: 2px; }
+/* FORM */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;}
+label .req{color:#ef4444;margin-left:2px;}
+input,select,textarea{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;color:#1e293b;font-family:'Noto Sans KR',sans-serif;font-size:13px;transition:border-color .15s;outline:none;}
+input:focus,select:focus,textarea:focus{border-color:#2563eb;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+textarea{resize:vertical;min-height:56px;}
+select option{background:#fff;}
 
-  /* Metric cards */
-  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-  .metric-card { background: var(--white); border-radius: var(--radius); padding: 18px; border: 1px solid var(--gray-200); }
-  .metric-label { font-size: 11px; color: var(--gray-400); margin-bottom: 6px; }
-  .metric-value { font-size: 28px; font-weight: 700; color: var(--gray-900); line-height: 1; }
-  .metric-unit { font-size: 13px; color: var(--gray-400); margin-top: 4px; }
-  .metric-card.green .metric-value { color: var(--primary); }
-  .metric-card.blue .metric-value { color: var(--blue); }
-  .metric-card.amber .metric-value { color: var(--amber); }
-  .metric-card.red .metric-value { color: var(--red); }
+/* 거리입력 */
+.dist-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1.2rem;margin-top:.5rem;}
+.dist-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;align-items:end;}
+.dist-result{background:#fff;border:1px solid #2563eb;border-radius:8px;padding:9px 12px;font-size:14px;font-weight:700;color:#2563eb;}
+.method-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:6px;}
+.mb-empty{background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;}
+.mb-realtime{background:#dcfce7;color:#15803d;border:1px solid #16a34a;}
+.mb-probe{background:#fef9c3;color:#854d0e;border:1px solid #ca8a04;}
 
-  /* Cards */
-  .card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--gray-200); padding: 20px; margin-bottom: 16px; }
-  .card-title { font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* 계산결과 */
+.calc-box{background:#f0f6ff;border:1px solid #2563eb;border-radius:14px;padding:1.5rem;margin-top:1.2rem;}
+.calc-box-title{font-size:12px;color:#2563eb;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:1rem;}
+.calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1rem;}
+.calc-item{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;}
+.calc-item.hl{border-color:#2563eb;background:#eff6ff;}
+.calc-item.total{grid-column:1/-1;border-color:#059669;background:#f0fdf4;}
+.calc-label{font-size:12px;color:#64748b;}
+.calc-value{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+.calc-value.blue{color:#2563eb;}
+.calc-value.green{color:#059669;font-size:15px;}
+.final-box{background:#fff;border:2px solid #059669;border-radius:10px;padding:1rem;display:flex;justify-content:space-between;align-items:center;}
+.final-main{font-size:22px;font-weight:700;color:#059669;font-variant-numeric:tabular-nums;}
+.final-vat-label{font-size:11px;color:#64748b;margin-bottom:3px;}
+.final-vat{font-size:16px;font-weight:700;color:#d97706;font-variant-numeric:tabular-nums;}
 
-  /* Request rows */
-  .req-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--gray-100); }
-  .req-row:last-child { border-bottom: none; padding-bottom: 0; }
-  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-  .av-green { background: var(--primary-light); color: var(--primary-dark); }
-  .av-blue { background: var(--blue-light); color: var(--blue-dark); }
-  .av-amber { background: var(--amber-light); color: var(--amber); }
-  .av-red { background: var(--red-light); color: var(--red-dark); }
-  .av-purple { background: #EEEDFE; color: #3C3489; }
-  .req-info { flex: 1; min-width: 0; }
-  .req-name { font-size: 13px; font-weight: 600; color: var(--gray-900); }
-  .req-detail { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+/* BUTTONS */
+.btn-group{display:flex;gap:8px;margin-top:1.2rem;flex-wrap:wrap;}
+.btn{padding:10px 20px;border-radius:9px;border:none;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.btn-primary{background:#2563eb;color:#fff;}
+.btn-primary:hover{background:#1d4ed8;}
+.btn-success{background:#059669;color:#fff;font-weight:700;}
+.btn-success:hover{background:#047857;}
+.btn-outline{background:#fff;border:1px solid #e2e8f0;color:#64748b;}
+.btn-outline:hover{border-color:#2563eb;color:#2563eb;}
 
-  /* Badges */
-  .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
-  .badge-pending { background: var(--amber-light); color: var(--amber); }
-  .badge-approved { background: var(--primary-light); color: var(--primary-dark); }
-  .badge-rejected { background: var(--red-light); color: var(--red-dark); }
+/* DROP ZONE */
+.drop-zone{border:2px dashed #cbd5e1;border-radius:14px;padding:3rem;text-align:center;cursor:pointer;transition:all .2s;background:#fff;}
+.drop-zone:hover,.drop-zone.drag{border-color:#2563eb;background:#eff6ff;}
+.drop-icon{font-size:3rem;margin-bottom:1rem;}
+.drop-title{font-size:15px;font-weight:600;color:#1e293b;margin-bottom:6px;}
+.drop-sub{font-size:12px;color:#64748b;}
 
-  /* Buttons */
-  .btn-row { display: flex; gap: 6px; }
-  .btn { padding: 5px 12px; font-size: 12px; border-radius: var(--radius-sm); border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.15s; }
-  .btn:hover { opacity: 0.85; }
-  .btn-approve { background: var(--primary-light); color: var(--primary-dark); border-color: #9FE1CB; }
-  .btn-reject { background: var(--red-light); color: var(--red-dark); border-color: #F7C1C1; }
-  .btn-primary { background: var(--primary); color: var(--white); border-color: var(--primary); padding: 10px 20px; font-size: 13px; border-radius: var(--radius-sm); width: 100%; margin-top: 8px; }
+/* PREVIEW TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{background:#f8fafc;padding:8px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:600;font-size:11px;color:#64748b;}
+.tbl td{padding:7px 10px;border:1px solid #e2e8f0;color:#1e293b;}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.tbl td.ctr{text-align:center;}
+.tbl tr:hover td{background:#f8fafc;}
+.tbl tr.sum-row td{background:#eff6ff;font-weight:600;}
 
-  /* Progress bar */
-  .progress-wrap { flex: 1; min-width: 0; }
-  .progress-bar { height: 6px; background: var(--gray-100); border-radius: 3px; overflow: hidden; margin-top: 6px; }
-  .progress-fill { height: 100%; border-radius: 3px; background: var(--primary); }
-  .progress-fill.danger { background: var(--red); }
+/* PROJECT LIST */
+.proj-list{display:flex;flex-direction:column;gap:.7rem;}
+.proj-item{background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:.9rem 1.1rem;display:grid;grid-template-columns:38px 1fr auto auto;align-items:center;gap:.9rem;cursor:pointer;transition:border-color .15s;}
+.proj-item:hover{border-color:#2563eb;}
+.proj-num{width:34px;height:34px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#2563eb;}
+.proj-name{font-size:13px;font-weight:500;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.proj-meta{font-size:11px;color:#64748b;}
+.proj-amount{font-size:14px;font-weight:700;color:#059669;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.proj-actions{display:flex;gap:5px;}
+.icon-btn{width:30px;height:30px;border-radius:6px;border:1px solid #e2e8f0;background:transparent;color:#94a3b8;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all .15s;}
+.icon-btn:hover{border-color:#2563eb;color:#2563eb;}
+.icon-btn.del:hover{border-color:#ef4444;color:#ef4444;}
 
-  /* Calendar */
-  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .cal-month { font-size: 15px; font-weight: 700; }
-  .cal-btn { padding: 4px 12px; font-size: 13px; border-radius: var(--radius-sm); border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-  .cal-head { text-align: center; font-size: 11px; color: var(--gray-400); padding: 4px 0; font-weight: 600; }
-  .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: var(--radius-sm); cursor: default; color: var(--gray-900); }
-  .cal-day.today { background: var(--gray-100); font-weight: 700; }
-  .cal-day.leave-g { background: var(--primary-light); color: var(--primary-dark); font-weight: 600; }
-  .cal-day.leave-b { background: var(--blue-light); color: var(--blue-dark); font-weight: 600; }
-  .cal-day.leave-a { background: var(--amber-light); color: var(--amber); font-weight: 600; }
-  .cal-day.leave-m { background: #EEEDFE; color: #3C3489; font-weight: 600; }
-  .cal-day.other { color: var(--gray-200); }
-  .cal-legend { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--gray-600); }
-  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+/* DETAIL PANEL */
+.detail-panel{display:none;background:#f8fafc;border:1px solid #2563eb;border-top:none;border-radius:0 0 11px 11px;padding:1.2rem;margin-top:-4px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.8rem;}
+.detail-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:7px;}
+.detail-item.hl{border-color:#2563eb;background:#eff6ff;}
+.detail-label{font-size:11px;color:#64748b;}
+.detail-value{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:#1e293b;}
+.detail-value.blue{color:#2563eb;}
 
-  /* Form */
-  .form-group { margin-bottom: 14px; }
-  .form-label { font-size: 12px; color: var(--gray-600); font-weight: 600; margin-bottom: 5px; display: block; }
-  .form-input { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); color: var(--gray-900); font-family: inherit; }
-  .form-input:focus { outline: none; border-color: var(--primary); }
-  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* SUMMARY */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.2rem;}
+.summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.2rem;}
+.s-label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+.s-value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;}
+.s-value.blue{color:#2563eb;}
+.s-value.green{color:#059669;}
+.s-sub{font-size:12px;color:#94a3b8;margin-top:3px;}
 
-  /* Notify */
-  .notify { background: var(--primary-light); border: 1px solid #9FE1CB; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--primary-dark); margin-bottom: 14px; display: none; }
-  .notify.show { display: block; }
+/* EMPTY */
+.empty{text-align:center;padding:3rem;color:#94a3b8;}
+.empty-icon{font-size:3rem;margin-bottom:.8rem;opacity:.4;}
 
-  /* Empty */
-  .empty { font-size: 13px; color: var(--gray-400); padding: 12px 0; text-align: center; }
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:#fff;border:1px solid #059669;border-radius:11px;padding:.9rem 1.4rem;font-size:13px;color:#059669;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.err{border-color:#ef4444;color:#ef4444;}
 
-  /* Page visibility */
-  .page { display: none; }
-  .page.active { display: block; }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; padding: 12px; }
-    .main { margin-left: 0; padding: 16px; }
-    .metrics { grid-template-columns: repeat(2, 1fr); }
-    .grid-2 { grid-template-columns: 1fr; }
-    .app { flex-direction: column; }
-  }
+@media(max-width:768px){
+  .container{padding:1rem;}
+  .summary-grid{grid-template-columns:repeat(2,1fr);}
+  .dist-grid{grid-template-columns:1fr;}
+  .calc-grid{grid-template-columns:1fr;}
+  .proj-item{grid-template-columns:34px 1fr;}
+}
 </style>
 </head>
 <body>
-<div class="app">
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="logo">
-      <div class="logo-title">📋 연차관리</div>
-      <div class="logo-sub">2025년 연차 시스템</div>
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗺️</div>
+    <div>
+      <div class="logo-text">지하시설물 정산 시스템</div>
+      <div class="logo-sub">통신관로 조사 및 측량 · SK TNS 수도권지사</div>
     </div>
-    <div class="role-bar">
-      <button class="role-btn active" onclick="setRole('admin')">관리자</button>
-      <button class="role-btn" onclick="setRole('employee')">직원</button>
+  </div>
+  <div class="hdr-badges">
+    <span class="badge live">실시간 연동</span>
+    <span class="badge" id="cntBadge">사업 0건</span>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="goTab('upload')">📂 양식 업로드</button>
+    <button class="tab" onclick="goTab('input')">📝 직접 입력</button>
+    <button class="tab" onclick="goTab('list')">📋 사업 목록</button>
+    <button class="tab" onclick="goTab('summary')">📊 정산 현황</button>
+  </div>
+
+  <!-- ===== TAB: 양식 업로드 ===== -->
+  <div class="tab-content active" id="tab-upload">
+    <div class="card">
+      <div class="card-title">📂 정산양식 엑셀 업로드</div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:1.2rem;">
+        정산양식(세부내역 시트)이 포함된 엑셀 파일을 업로드하면<br>
+        자동으로 사업 정보와 거리를 읽어 금액을 계산합니다.
+      </p>
+      <div class="drop-zone" id="dropZone"
+        onclick="document.getElementById('fileInput').click()"
+        ondragover="event.preventDefault();this.classList.add('drag');"
+        ondragleave="this.classList.remove('drag');"
+        ondrop="onDrop(event)">
+        <div class="drop-icon">📊</div>
+        <div class="drop-title">엑셀 파일을 여기에 드래그하거나 클릭하세요</div>
+        <div class="drop-sub">지원 형식: .xlsx · 세부내역 시트가 포함된 정산양식</div>
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="onFileSelect(this.files[0])">
+      </div>
     </div>
 
-    <!-- Admin nav -->
-    <div id="admin-nav">
-      <div class="nav-section">관리자 메뉴</div>
-      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> 대시보드</div>
-      <div class="nav-item" onclick="showPage('requests')"><span class="nav-icon">📝</span> 신청 관리</div>
-      <div class="nav-item" onclick="showPage('calendar')"><span class="nav-icon">📅</span> 캘린더</div>
-      <div class="nav-item" onclick="showPage('employees')"><span class="nav-icon">👥</span> 직원 현황</div>
-    </div>
-
-    <!-- Employee nav -->
-    <div id="employee-nav" style="display:none;">
-      <div class="nav-section">직원 메뉴</div>
-      <div class="nav-item active" onclick="showPage('my-leave')"><span class="nav-icon">🏖️</span> 내 연차</div>
-      <div class="nav-item" onclick="showPage('apply')"><span class="nav-icon">✏️</span> 신청하기</div>
-      <div class="nav-item" onclick="showPage('my-calendar')"><span class="nav-icon">📅</span> 캘린더</div>
+    <div id="previewBox" style="display:none;">
+      <div class="card">
+        <div class="card-title">✅ 읽어온 사업 목록 확인</div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:1rem;">내용을 확인하고 <strong>전체 추가</strong>를 누르면 금액이 계산됩니다.</p>
+        <div style="overflow-x:auto;">
+          <table class="tbl" id="previewTbl">
+            <thead>
+              <tr>
+                <th>순번</th><th>구분</th><th>지역</th><th>공사코드</th>
+                <th>공사명</th><th>노출(km)</th><th>탐사(km)</th>
+                <th>정산구분</th><th class="num">예상 공사비</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="addAllUploaded()">✅ 전체 추가하기</button>
+          <button class="btn btn-outline" onclick="cancelUpload()">❌ 취소</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Main -->
-  <div class="main">
-
-    <!-- 대시보드 -->
-    <div class="page active" id="page-dashboard">
-      <div class="page-header">
-        <div><div class="page-title">대시보드</div><div class="page-sub">2025년 전체 연차 현황</div></div>
-      </div>
-      <div class="metrics">
-        <div class="metric-card"><div class="metric-label">전체 직원</div><div class="metric-value">8</div><div class="metric-unit">명</div></div>
-        <div class="metric-card green"><div class="metric-label">이번 달 승인</div><div class="metric-value" id="m-approved">5</div><div class="metric-unit">건</div></div>
-        <div class="metric-card amber"><div class="metric-label">대기 중</div><div class="metric-value" id="m-pending">2</div><div class="metric-unit">건</div></div>
-        <div class="metric-card blue"><div class="metric-label">평균 잔여 연차</div><div class="metric-value">9.2</div><div class="metric-unit">일</div></div>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">⏳ 대기 중인 신청</div>
-          <div id="pending-list"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">📈 직원별 연차 현황</div>
-          <div id="emp-progress"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 신청 관리 -->
-    <div class="page" id="page-requests">
-      <div class="page-header">
-        <div><div class="page-title">신청 관리</div><div class="page-sub">전체 연차 신청 내역</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">📋 전체 신청 내역</div>
-        <div id="all-requests"></div>
-      </div>
-    </div>
-
-    <!-- 캘린더 (관리자) -->
-    <div class="page" id="page-calendar">
-      <div class="page-header">
-        <div><div class="page-title">연차 캘린더</div><div class="page-sub">직원 휴가 일정</div></div>
-      </div>
-      <div class="card">
-        <div class="cal-nav">
-          <button class="cal-btn" onclick="changeMonth(-1)">← 이전</button>
-          <div class="cal-month" id="cal-title"></div>
-          <button class="cal-btn" onclick="changeMonth(1)">다음 →</button>
-        </div>
-        <div class="cal-grid" id="cal-head-a"></div>
-        <div class="cal-grid" style="margin-top:4px;" id="cal-body-a"></div>
-        <div class="cal-legend" id="cal-legend-a"></div>
-      </div>
-    </div>
-
-    <!-- 직원 현황 -->
-    <div class="page" id="page-employees">
-      <div class="page-header">
-        <div><div class="page-title">직원 현황</div><div class="page-sub">연차 사용 현황</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">👥 전체 직원 연차 현황</div>
-        <div id="emp-list"></div>
-      </div>
-    </div>
-
-    <!-- 내 연차 (직원) -->
-    <div class="page" id="page-my-leave">
-      <div class="page-header">
-        <div><div class="page-title">내 연차</div><div class="page-sub">김민준님의 연차 현황</div></div>
-      </div>
-      <div class="metrics" style="grid-template-columns: repeat(3,1fr);">
-        <div class="metric-card"><div class="metric-label">총 연차</div><div class="metric-value">15</div><div class="metric-unit">일</div></div>
-        <div class="metric-card amber"><div class="metric-label">사용한 연차</div><div class="metric-value">6</div><div class="metric-unit">일</div></div>
-        <div class="metric-card green"><div class="metric-label">남은 연차</div><div class="metric-value">9</div><div class="metric-unit">일</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">📋 내 신청 내역</div>
-        <div id="my-requests"></div>
-      </div>
-    </div>
-
-    <!-- 신청하기 (직원) -->
-    <div class="page" id="page-apply">
-      <div class="page-header">
-        <div><div class="page-title">연차 신청</div><div class="page-sub">새 연차 신청</div></div>
-      </div>
-      <div class="card" style="max-width: 480px;">
-        <div class="notify" id="apply-notify">✅ 신청이 완료되었습니다. 관리자 승인을 기다려 주세요.</div>
+  <!-- ===== TAB: 직접 입력 ===== -->
+  <div class="tab-content" id="tab-input">
+    <div class="card">
+      <div class="card-title">🏗️ 사업 기본 정보</div>
+      <div class="form-grid">
         <div class="form-group">
-          <label class="form-label">신청 유형</label>
-          <select class="form-input" id="leave-type">
-            <option>연차</option>
-            <option>반차 (오전)</option>
-            <option>반차 (오후)</option>
-            <option>병가</option>
+          <label>구분 <span class="req">*</span></label>
+          <select id="fGubun">
+            <option value="">선택</option>
+            <option value="지자체">지자체</option>
+            <option value="SKT">SKT</option>
           </select>
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label class="form-label">시작일</label>
-            <input type="date" class="form-input" id="start-date" value="2025-05-12">
-          </div>
-          <div class="form-group">
-            <label class="form-label">종료일</label>
-            <input type="date" class="form-input" id="end-date" value="2025-05-14">
-          </div>
+        <div class="form-group">
+          <label>지역 <span class="req">*</span></label>
+          <input type="text" id="fRegion" placeholder="예) 인천시">
         </div>
         <div class="form-group">
-          <label class="form-label">사유 (선택)</label>
-          <textarea class="form-input" rows="3" id="leave-reason" placeholder="휴가 사유를 입력하세요..."></textarea>
+          <label>공공측량명칭</label>
+          <input type="text" id="fSurveyName" placeholder="예) 26년 SK 지하관로 측량(수도권지사)">
         </div>
-        <button class="btn btn-primary" onclick="submitLeave()">신청 제출</button>
+        <div class="form-group">
+          <label>공사코드 <span class="req">*</span></label>
+          <input type="text" id="fWorkCode" placeholder="예) T26020256102828">
+        </div>
+        <div class="form-group full">
+          <label>공사명 <span class="req">*</span></label>
+          <textarea id="fWorkName" placeholder="공사 전체 명칭"></textarea>
+        </div>
+        <div class="form-group">
+          <label>사업구분(Tango)</label>
+          <select id="fTango">
+            <option value="[E-4. 지장이설] 원인자 공사">[E-4. 지장이설] 원인자 공사</option>
+            <option value="[A-2. 인입관로] 인입 관로 공급">[A-2. 인입관로] 인입 관로 공급</option>
+            <option value="[B-3. 기간선로] 신설/증설/보강">[B-3. 기간선로] 신설/증설/보강</option>
+            <option value="[B-3. 기간선로] 신축국사 연계 간선선로">[B-3. 기간선로] 신축국사 연계 간선선로</option>
+            <option value="[C-2. 프론트홀 선로(5G)] 용량증설(5G)">[C-2. 프론트홀 선로(5G)] 용량증설(5G)</option>
+            <option value="[E-4. 지장이설] 지중 인프라 확보">[E-4. 지장이설] 지중 인프라 확보</option>
+            <option value="[E-4. 지장이설] 순수 지장 이설">[E-4. 지장이설] 순수 지장 이설</option>
+            <option value="[G-3. 프론트홀 선로(4G)] 용량증설(4G)">[G-3. 프론트홀 선로(4G)] 용량증설(4G)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tango 굴착거리(km)</label>
+          <input type="number" id="fTangoKm" placeholder="0.000" step="0.001" min="0">
+        </div>
+        <div class="form-group">
+          <label>비고</label>
+          <input type="text" id="fRemark" placeholder="예) 10월 일부 정산">
+        </div>
       </div>
     </div>
 
-    <!-- 내 캘린더 (직원) -->
-    <div class="page" id="page-my-calendar">
-      <div class="page-header">
-        <div><div class="page-title">내 캘린더</div><div class="page-sub">나의 연차 일정</div></div>
-      </div>
-      <div class="card">
-        <div class="cal-nav">
-          <button class="cal-btn" onclick="changeMonth(-1)">← 이전</button>
-          <div class="cal-month" id="cal-title-e"></div>
-          <button class="cal-btn" onclick="changeMonth(1)">다음 →</button>
+    <div class="card">
+      <div class="card-title">📏 측량 거리 입력</div>
+      <div class="dist-box">
+        <div class="dist-grid">
+          <div class="form-group">
+            <label>노출측량 거리 (km)</label>
+            <input type="number" id="fExposed" placeholder="0.000" step="0.001" min="0" oninput="onDistChange()">
+          </div>
+          <div class="form-group">
+            <label>탐사측량 거리 (km)</label>
+            <input type="number" id="fProbe" placeholder="0.000" step="0.001" min="0" oninput="onDistChange()">
+          </div>
+          <div class="form-group">
+            <label>측량거리 합계 (km)</label>
+            <div class="dist-result" id="distTotal">0.000 km</div>
+            <div class="method-badge mb-empty" id="methodBadge">미입력</div>
+          </div>
         </div>
-        <div class="cal-grid" id="cal-head-e"></div>
-        <div class="cal-grid" style="margin-top:4px;" id="cal-body-e"></div>
-        <div class="cal-legend" id="cal-legend-e"></div>
+        <div style="font-size:11px;color:#64748b;margin-top:.8rem;line-height:1.8;">
+          <span style="color:#15803d;">●</span> <strong>실시간</strong>: 노출+탐사 모두 입력 (2회 측량) &nbsp;|&nbsp;
+          <span style="color:#854d0e;">●</span> <strong>탐사</strong>: 탐사만 입력 (1회 측량)
+        </div>
       </div>
     </div>
 
+    <div class="calc-box" id="calcBox" style="display:none;">
+      <div class="calc-box-title">⚡ 원가 자동 산출</div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:.8rem;">
+        실시간: 탐사거리×6,209(노무)/9,437(기계) &nbsp;|&nbsp; 탐사: 탐사거리×3,104(노무)/4,719(기계)
+      </div>
+      <div class="calc-grid" id="calcGrid"></div>
+      <div class="final-box">
+        <div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:3px;">공사비 합계 (천원 절사 · 부가세 제외)</div>
+          <div class="final-main" id="finalAmt">0 원</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="final-vat-label">부가세(10%) 포함</div>
+          <div class="final-vat" id="finalVat">0 원</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="addProject()">➕ 사업 추가</button>
+      <button class="btn btn-outline" onclick="resetForm()">🔄 초기화</button>
+    </div>
+  </div>
+
+  <!-- ===== TAB: 사업 목록 ===== -->
+  <div class="tab-content" id="tab-list">
+    <div class="card">
+      <div class="card-title">📋 입력된 사업 목록</div>
+      <div id="projList">
+        <div class="empty"><div class="empty-icon">📭</div><p>입력된 사업이 없습니다</p></div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-success" onclick="downloadExcel()">⬇️ 정산 엑셀 다운로드</button>
+      <button class="btn btn-outline" onclick="goTab('upload')">➕ 사업 추가</button>
+    </div>
+  </div>
+
+  <!-- ===== TAB: 정산 현황 ===== -->
+  <div class="tab-content" id="tab-summary">
+    <div class="summary-grid">
+      <div class="summary-card"><div class="s-label">총 사업 수</div><div class="s-value blue" id="sCnt">0</div><div class="s-sub">건</div></div>
+      <div class="summary-card"><div class="s-label">총 측량거리</div><div class="s-value" id="sDist">0.000</div><div class="s-sub">km</div></div>
+      <div class="summary-card"><div class="s-label">공사비 합계</div><div class="s-value green" id="sAmt">0</div><div class="s-sub">원</div></div>
+      <div class="summary-card"><div class="s-label">부가세 포함 합계</div><div class="s-value green" id="sVat">0</div><div class="s-sub">원</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 사업별 원가계산서 요약</div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>순번</th><th>구분</th><th>지역</th><th>공사코드</th>
+              <th>정산구분</th><th class="num">측량거리(km)</th>
+              <th class="num">직접노무비</th><th class="num">기계경비</th>
+              <th class="num">공사비 합계</th><th class="num">부가세포함</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-success" onclick="downloadExcel()">⬇️ 정산 엑셀 다운로드</button>
+    </div>
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
-const employees = [
-  { id:1, name:'김민준', initials:'김민', dept:'개발팀', color:'av-green', calColor:'leave-g' },
-  { id:2, name:'이서연', initials:'이서', dept:'디자인팀', color:'av-blue', calColor:'leave-b' },
-  { id:3, name:'박지호', initials:'박지', dept:'개발팀', color:'av-amber', calColor:'leave-a' },
-  { id:4, name:'최유나', initials:'최유', dept:'마케팅팀', color:'av-purple', calColor:'leave-m' },
-  { id:5, name:'정태양', initials:'정태', dept:'영업팀', color:'av-green', calColor:'leave-g' },
-  { id:6, name:'한소희', initials:'한소', dept:'인사팀', color:'av-blue', calColor:'leave-b' },
-  { id:7, name:'오준서', initials:'오준', dept:'개발팀', color:'av-amber', calColor:'leave-a' },
-  { id:8, name:'임채원', initials:'임채', dept:'디자인팀', color:'av-purple', calColor:'leave-m' },
+// ================================================================
+// 상수
+// ================================================================
+const RATES = {
+  realtime: {labor: 6209, machine: 9437},
+  probe:    {labor: 3104, machine: 4719},
+};
+const RATIOS = {
+  indirectLabor: 0.10, accident: 0.0356, employment: 0.0101,
+  pension: 0.0475, health: 0.03595, safety: 0.0178,
+  elderly: 0.1314, genMgmt: 0.03, profit: 0.135,
+  contract: 0.749, vat: 0.10,
+};
+const TANGO_LIST = [
+  '[A-2. 인입관로] 인입 관로 공급',
+  '[B-3. 기간선로] 신설/증설/보강',
+  '[B-3. 기간선로] 신축국사 연계 간선선로',
+  '[C-2. 프론트홀 선로(5G)] 용량증설(5G)',
+  '[E-4. 지장이설] 원인자 공사',
+  '[E-4. 지장이설] 지중 인프라 확보',
+  '[E-4. 지장이설] 순수 지장 이설',
+  '[G-3. 프론트홀 선로(4G)] 용량증설(4G)',
 ];
-const empUsed = { 1:6, 2:10, 3:3, 4:8, 5:12, 6:5, 7:9, 8:7 };
-const total = 15;
 
-let requests = [
-  { id:1, empId:1, type:'연차', start:'2025-05-12', end:'2025-05-14', days:3, status:'pending', reason:'가족여행' },
-  { id:2, empId:3, type:'반차 (오전)', start:'2025-05-08', end:'2025-05-08', days:0.5, status:'pending', reason:'병원' },
-  { id:3, empId:2, type:'연차', start:'2025-04-21', end:'2025-04-25', days:5, status:'approved', reason:'' },
-  { id:4, empId:5, type:'연차', start:'2025-04-14', end:'2025-04-16', days:3, status:'approved', reason:'' },
-  { id:5, empId:4, type:'병가', start:'2025-03-10', end:'2025-03-12', days:3, status:'approved', reason:'' },
-  { id:6, empId:6, type:'연차', start:'2025-02-17', end:'2025-02-18', days:2, status:'rejected', reason:'' },
-];
+// ================================================================
+// 상태
+// ================================================================
+let projects = [];
+try { projects = JSON.parse(localStorage.getItem('ugs_projects') || '[]'); } catch(e) {}
+let uploadedRows = [];
+let uploadedMonth = ''; // 업로드 엑셀에서 추출한 월
 
-let currentMonth = new Date(2025, 4);
-let currentRole = 'admin';
-let currentPage = 'dashboard';
-
-function getEmp(id) { return employees.find(e => e.id === id); }
-
-function statusBadge(s) {
-  const map = { pending:'badge-pending', approved:'badge-approved', rejected:'badge-rejected' };
-  const label = { pending:'대기 중', approved:'승인됨', rejected:'거절됨' };
-  return `<span class="badge ${map[s]}">${label[s]}</span>`;
+// ================================================================
+// 원가 계산
+// ================================================================
+function calcCost(exposedKm, probeKm, method) {
+  const probeM = probeKm * 1000;
+  const r = RATES[method];
+  const dl = Math.floor(probeM * r.labor);
+  const me = Math.floor(probeM * r.machine);
+  const il = Math.floor(dl * RATIOS.indirectLabor);
+  const lt = dl + il;
+  const ac = Math.floor(lt * RATIOS.accident);
+  const em = Math.floor(lt * RATIOS.employment);
+  const pe = Math.floor(dl * RATIOS.pension);
+  const he = Math.floor(dl * RATIOS.health);
+  const sa = Math.floor(dl * RATIOS.safety);
+  const el = Math.floor(he * RATIOS.elderly);
+  const et = ac + em + pe + he + sa + el + me;
+  const gm = Math.floor((lt + et) * RATIOS.genMgmt);
+  const pr = Math.floor((lt + et + gm) * RATIOS.profit);
+  const wc = lt + et + gm + pr;
+  const ct = Math.floor((wc - sa) * RATIOS.contract) + sa;
+  const fi = Math.floor(ct / 1000) * 1000;
+  const vt = Math.round(fi * RATIOS.vat);
+  return {
+    directLabor:dl, indirectLabor:il, laborTotal:lt, machineExp:me,
+    accident:ac, employment:em, pension:pe, health:he, safety:sa, elderly:el,
+    expTotal:et, generalMgmt:gm, profit:pr, workCost:wc, contract:ct,
+    finalCost:fi, vat:vt, totalWithVat:fi+vt,
+  };
 }
 
-function renderPending() {
-  const pending = requests.filter(r => r.status === 'pending');
-  document.getElementById('m-pending').textContent = pending.length;
-  const el = document.getElementById('pending-list');
-  if (!pending.length) { el.innerHTML = '<div class="empty">대기 중인 신청이 없습니다</div>'; return; }
-  el.innerHTML = pending.map(r => {
-    const e = getEmp(r.empId);
-    return `<div class="req-row">
-      <div class="avatar ${e.color}">${e.initials}</div>
-      <div class="req-info">
-        <div class="req-name">${e.name} <span style="font-weight:400;font-size:11px;color:var(--gray-400);">${e.dept}</span></div>
-        <div class="req-detail">${r.type} · ${r.start} ~ ${r.end} · ${r.days}일</div>
-      </div>
-      ${statusBadge(r.status)}
-      <div class="btn-row">
-        <button class="btn btn-approve" onclick="decide(${r.id},'approved')">승인</button>
-        <button class="btn btn-reject" onclick="decide(${r.id},'rejected')">거절</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderAllRequests() {
-  const el = document.getElementById('all-requests');
-  el.innerHTML = requests.map(r => {
-    const e = getEmp(r.empId);
-    return `<div class="req-row">
-      <div class="avatar ${e.color}">${e.initials}</div>
-      <div class="req-info">
-        <div class="req-name">${e.name} <span style="font-weight:400;font-size:11px;color:var(--gray-400);">${e.dept}</span></div>
-        <div class="req-detail">${r.type} · ${r.start} ~ ${r.end} · ${r.days}일${r.reason?' · '+r.reason:''}</div>
-      </div>
-      ${statusBadge(r.status)}
-      ${r.status==='pending'?`<div class="btn-row"><button class="btn btn-approve" onclick="decide(${r.id},'approved')">승인</button><button class="btn btn-reject" onclick="decide(${r.id},'rejected')">거절</button></div>`:''}
-    </div>`;
-  }).join('');
-}
-
-function renderEmpProgress() {
-  const el = document.getElementById('emp-progress');
-  el.innerHTML = employees.map(e => {
-    const used = empUsed[e.id];
-    const rem = total - used;
-    const pct = Math.round((used/total)*100);
-    return `<div class="req-row">
-      <div class="avatar ${e.color}">${e.initials}</div>
-      <div class="progress-wrap">
-        <div style="display:flex;justify-content:space-between;font-size:12px;">
-          <span style="font-weight:600;">${e.name}</span>
-          <span style="color:var(--gray-400);">잔여 ${rem}일</span>
-        </div>
-        <div class="progress-bar"><div class="progress-fill ${pct>80?'danger':''}" style="width:${pct}%"></div></div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderEmpList() {
-  const el = document.getElementById('emp-list');
-  el.innerHTML = employees.map(e => {
-    const used = empUsed[e.id];
-    const rem = total - used;
-    const pct = Math.round((used/total)*100);
-    return `<div class="req-row">
-      <div class="avatar ${e.color}">${e.initials}</div>
-      <div class="req-info">
-        <div class="req-name">${e.name}</div>
-        <div class="req-detail">${e.dept}</div>
-      </div>
-      <div style="min-width:160px;">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>사용 ${used}일</span><span>잔여 ${rem}일</span></div>
-        <div class="progress-bar"><div class="progress-fill ${pct>80?'danger':''}" style="width:${pct}%"></div></div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderMyRequests() {
-  const mine = requests.filter(r => r.empId === 1);
-  const el = document.getElementById('my-requests');
-  if (!mine.length) { el.innerHTML = '<div class="empty">신청 내역이 없습니다</div>'; return; }
-  el.innerHTML = mine.map(r => `<div class="req-row">
-    <div class="req-info">
-      <div class="req-name">${r.type}</div>
-      <div class="req-detail">${r.start} ~ ${r.end} · ${r.days}일${r.reason?' · '+r.reason:''}</div>
-    </div>
-    ${statusBadge(r.status)}
-  </div>`).join('');
-}
-
-function renderCalendar(bodyId, headId, titleId, legendId, empId) {
-  const y = currentMonth.getFullYear();
-  const m = currentMonth.getMonth();
-  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  document.getElementById(titleId).textContent = `${y}년 ${months[m]}`;
-
-  const days = ['일','월','화','수','목','금','토'];
-  document.getElementById(headId).innerHTML = days.map(d=>`<div class="cal-head">${d}</div>`).join('');
-
-  const first = new Date(y,m,1).getDay();
-  const last = new Date(y,m+1,0).getDate();
-  const today = new Date();
-
-  const approved = requests.filter(r => r.status==='approved' && (!empId || r.empId===empId));
-  const dateMap = {};
-  approved.forEach(r => {
-    let d = new Date(r.start);
-    const end = new Date(r.end);
-    while(d <= end) {
-      const key = d.toISOString().slice(0,10);
-      if(!dateMap[key]) dateMap[key]=[];
-      dateMap[key].push(r.empId);
-      d.setDate(d.getDate()+1);
-    }
+// ================================================================
+// 탭
+// ================================================================
+function goTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['upload','input','list','summary'][i] === name);
   });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'list') renderList();
+  if (name === 'summary') renderSummary();
+}
 
-  let html = '';
-  for(let i=0;i<first;i++) html+=`<div class="cal-day other"></div>`;
-  for(let d=1;d<=last;d++) {
-    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isToday = today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d;
-    const emps = dateMap[ds]||[];
-    let cls = isToday?'today':'';
-    if(emps.length===1) cls = getEmp(emps[0])?.calColor||'leave-g';
-    else if(emps.length>1) cls='leave-m';
-    const title = emps.map(id=>getEmp(id)?.name||'').join(', ');
-    html+=`<div class="cal-day ${cls}" title="${title}">${d}</div>`;
+// ================================================================
+// 거리 입력 → 계산
+// ================================================================
+function onDistChange() {
+  const exposed = parseFloat(document.getElementById('fExposed').value) || 0;
+  const probe   = parseFloat(document.getElementById('fProbe').value) || 0;
+  const total   = exposed + probe;
+  document.getElementById('distTotal').textContent = total.toFixed(3) + ' km';
+  const badge = document.getElementById('methodBadge');
+  if (exposed === 0 && probe === 0) {
+    badge.textContent = '미입력'; badge.className = 'method-badge mb-empty';
+    document.getElementById('calcBox').style.display = 'none';
+    return;
   }
-  document.getElementById(bodyId).innerHTML = html;
+  const method = (exposed > 0 && probe > 0) ? 'realtime' : 'probe';
+  badge.textContent = method === 'realtime' ? '⚡ 실시간 (노출+탐사)' : '🔍 탐사';
+  badge.className = 'method-badge ' + (method === 'realtime' ? 'mb-realtime' : 'mb-probe');
+  const c = calcCost(exposed, probe, method);
+  renderCalc(c);
+}
 
-  if(legendId) {
-    const shown = new Set(approved.map(r=>r.empId));
-    const colors = {'leave-g':'#9FE1CB','leave-b':'#B5D4F4','leave-a':'#FAC775','leave-m':'#CECBF6'};
-    document.getElementById(legendId).innerHTML = Array.from(shown).slice(0,5).map(id=>{
-      const e=getEmp(id);
-      return `<div class="legend-item"><div class="legend-dot" style="background:${colors[e?.calColor]||'#ccc'}"></div>${e?.name}</div>`;
-    }).join('') + `<div class="legend-item"><div class="legend-dot" style="background:#CECBF6"></div>복수 직원</div>`;
+function renderCalc(c) {
+  const items = [
+    ['직접노무비', c.directLabor, false],
+    ['간접노무비(10%)', c.indirectLabor, false],
+    ['노무비 소계', c.laborTotal, true],
+    ['기계경비', c.machineExp, false],
+    ['산재보험료(3.56%)', c.accident, false],
+    ['고용보험료(1.01%)', c.employment, false],
+    ['국민연금(4.75%)', c.pension, false],
+    ['국민건강보험(3.595%)', c.health, false],
+    ['안전관리비(1.78%)', c.safety, false],
+    ['노인장기요양(13.14%)', c.elderly, false],
+    ['경비 소계', c.expTotal, true],
+    ['일반관리비(3%)', c.generalMgmt, false],
+    ['이윤(13.5%)', c.profit, false],
+    ['공사비 합계', c.workCost, true],
+    ['낙찰가(74.9%)', c.finalCost, true],
+  ];
+  document.getElementById('calcGrid').innerHTML = items.map(([lbl,val,hl]) =>
+    '<div class="calc-item' + (hl ? ' hl' : '') + '">' +
+    '<span class="calc-label">' + lbl + '</span>' +
+    '<span class="calc-value' + (hl ? ' blue' : '') + '">' + fmt(val) + '</span>' +
+    '</div>'
+  ).join('');
+  document.getElementById('finalAmt').textContent = fmt(c.finalCost) + ' 원';
+  document.getElementById('finalVat').textContent = fmt(c.totalWithVat) + ' 원';
+  document.getElementById('calcBox').style.display = 'block';
+}
+
+// ================================================================
+// 사업 추가
+// ================================================================
+function addProject() {
+  const gubun    = document.getElementById('fGubun').value;
+  const region   = document.getElementById('fRegion').value.trim();
+  const workCode = document.getElementById('fWorkCode').value.trim();
+  const workName = document.getElementById('fWorkName').value.trim();
+  const exposed  = parseFloat(document.getElementById('fExposed').value) || 0;
+  const probe    = parseFloat(document.getElementById('fProbe').value) || 0;
+
+  if (!gubun || !region || !workCode || !workName) {
+    showToast('❌ 구분, 지역, 공사코드, 공사명은 필수입니다', true); return;
+  }
+  if (exposed === 0 && probe === 0) {
+    showToast('❌ 측량 거리를 입력해주세요', true); return;
+  }
+  const method = (exposed > 0 && probe > 0) ? 'realtime' : 'probe';
+  const cost = calcCost(exposed, probe, method);
+
+  projects.push({
+    id: Date.now(),
+    gubun, region,
+    surveyName: document.getElementById('fSurveyName').value.trim(),
+    workCode, workName,
+    tangoType: document.getElementById('fTango').value,
+    tangoKm: parseFloat(document.getElementById('fTangoKm').value) || 0,
+    remark: document.getElementById('fRemark').value.trim(),
+    exposedKm: exposed, probeKm: probe, method,
+    ...cost,
+  });
+  save();
+  resetForm();
+  showToast('✅ 사업이 추가되었습니다');
+  updateBadge();
+}
+
+function resetForm() {
+  ['fGubun','fRegion','fSurveyName','fWorkCode','fWorkName','fTango','fTangoKm','fRemark','fExposed','fProbe'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('distTotal').textContent = '0.000 km';
+  document.getElementById('methodBadge').textContent = '미입력';
+  document.getElementById('methodBadge').className = 'method-badge mb-empty';
+  document.getElementById('calcBox').style.display = 'none';
+}
+
+// ================================================================
+// 파일 업로드 (ExcelJS)
+// ================================================================
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.xlsx')) onFileSelect(file);
+  else showToast('❌ .xlsx 파일만 가능합니다', true);
+}
+
+function onFileSelect(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      // SheetJS로 빠르게 읽기
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellValues:true});
+      const sheetName = wb.SheetNames.find(n => n.includes('세부내역'));
+      if (!sheetName) { showToast('❌ 세부내역 시트를 찾을 수 없습니다', true); return; }
+      const ws = wb.Sheets[sheetName];
+
+      // 세부내역 1행에서 "(N월)" 패턴 찾기 (A~E열 탐색)
+      uploadedMonth = '';
+      for (const col of ['A','B','C','D','E']) {
+        const cell = ws[col + '1'];
+        if (!cell) continue;
+        const m = String(cell.v).match(/(\d+)월/);
+        if (m) { uploadedMonth = String(m[1]).padStart(2, '0'); break; }
+      }
+
+      function gc(col, row) {
+        const c = ws[col + row];
+        return c ? c.v : null;
+      }
+
+      uploadedRows = [];
+      for (let r = 5; r <= 23; r++) {
+        const workCode = gc('F', r);
+        const workName = gc('G', r);
+        const exposed  = parseFloat(gc('K', r)) || 0;
+        const probe    = parseFloat(gc('L', r)) || 0;
+        if (!workCode && !workName) continue;
+        if (exposed === 0 && probe === 0) continue;
+
+        const method = (exposed > 0 && probe > 0) ? 'realtime' : 'probe';
+        const cost = calcCost(exposed, probe, method);
+        uploadedRows.push({
+          id: Date.now() + r,
+          gubun:      gc('C', r) || '',
+          region:     gc('D', r) || '',
+          surveyName: gc('E', r) || '',
+          workCode:   workCode || '',
+          workName:   workName || '',
+          tangoType:  gc('H', r) || '[E-4. 지장이설] 원인자 공사',
+          tangoKm:    parseFloat(gc('J', r)) || 0,
+          remark:     gc('O', r) || '',
+          exposedKm: exposed, probeKm: probe, method,
+          ...cost,
+        });
+      }
+
+      if (uploadedRows.length === 0) {
+        showToast('❌ 읽어온 데이터가 없습니다. 거리 값을 확인해주세요', true); return;
+      }
+
+      document.getElementById('previewBody').innerHTML = uploadedRows.map((p,i) =>
+        '<tr>' +
+        '<td class="ctr">' + (i+1) + '</td>' +
+        '<td>' + p.gubun + '</td>' +
+        '<td>' + p.region + '</td>' +
+        '<td style="font-size:11px">' + p.workCode + '</td>' +
+        '<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + p.workName + '">' + p.workName + '</td>' +
+        '<td class="num">' + (p.exposedKm || '-') + '</td>' +
+        '<td class="num">' + (p.probeKm || '-') + '</td>' +
+        '<td class="ctr"><span style="color:' + (p.method==='realtime'?'#15803d':'#854d0e') + ';font-weight:600;">' + (p.method==='realtime'?'실시간':'탐사') + '</span></td>' +
+        '<td class="num" style="color:#059669;font-weight:700;">' + fmt(p.finalCost) + '원</td>' +
+        '</tr>'
+      ).join('');
+      document.getElementById('previewBox').style.display = 'block';
+      document.getElementById('previewBox').scrollIntoView({behavior:'smooth'});
+      showToast('✅ ' + uploadedRows.length + '개 사업을 읽었습니다');
+    } catch(err) {
+      showToast('❌ 파일 읽기 오류: ' + err.message, true);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function addAllUploaded() {
+  projects.push(...uploadedRows);
+  save(); updateBadge();
+  uploadedRows = [];
+  document.getElementById('previewBox').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  showToast('✅ ' + projects.length + '건 추가 완료');
+  setTimeout(() => goTab('list'), 800);
+}
+
+function cancelUpload() {
+  uploadedRows = [];
+  document.getElementById('previewBox').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+}
+
+// ================================================================
+// 목록 렌더
+// ================================================================
+function renderList() {
+  const el = document.getElementById('projList');
+  if (projects.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>입력된 사업이 없습니다</p></div>';
+    return;
+  }
+  el.innerHTML = '<div class="proj-list">' +
+    projects.map((p,i) =>
+      '<div>' +
+      '<div class="proj-item" onclick="toggleDetail(' + p.id + ')">' +
+        '<div class="proj-num">' + (i+1) + '</div>' +
+        '<div>' +
+          '<div class="proj-name">' + p.workName + '</div>' +
+          '<div class="proj-meta">' + p.gubun + ' · ' + p.region + ' · ' + p.workCode +
+            ' · <span style="color:' + (p.method==='realtime'?'#15803d':'#854d0e') + ';font-weight:600;">' +
+            (p.method==='realtime'?'실시간':'탐사') + '</span>' +
+            ' · ' + ((p.exposedKm||0)+(p.probeKm||0)).toFixed(3) + 'km</div>' +
+        '</div>' +
+        '<div class="proj-amount">' + fmt(p.finalCost) + '원</div>' +
+        '<div class="proj-actions">' +
+          '<button class="icon-btn del" onclick="event.stopPropagation();delProject(' + p.id + ')" title="삭제">🗑️</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="detail-panel" id="dp-' + p.id + '">' + detailHTML(p) + '</div>' +
+      '</div>'
+    ).join('') + '</div>';
+}
+
+function detailHTML(p) {
+  const items = [
+    ['직접노무비', p.directLabor, false],
+    ['간접노무비(10%)', p.indirectLabor, false],
+    ['노무비 소계', p.laborTotal, true],
+    ['기계경비', p.machineExp, false],
+    ['산재보험료', p.accident, false],
+    ['고용보험료', p.employment, false],
+    ['국민연금', p.pension, false],
+    ['국민건강보험', p.health, false],
+    ['안전관리비', p.safety, false],
+    ['노인장기요양', p.elderly, false],
+    ['경비 소계', p.expTotal, true],
+    ['일반관리비(3%)', p.generalMgmt, false],
+    ['이윤(13.5%)', p.profit, false],
+    ['공사비 합계', p.workCost, true],
+    ['낙찰가(74.9%)', p.finalCost, true],
+  ];
+  return '<div class="detail-grid">' +
+    items.map(([lbl,val,hl]) =>
+      '<div class="detail-item' + (hl?' hl':'') + '">' +
+      '<span class="detail-label">' + lbl + '</span>' +
+      '<span class="detail-value' + (hl?' blue':'') + '">' + fmt(val) + '</span>' +
+      '</div>'
+    ).join('') + '</div>' +
+    '<div class="final-box">' +
+      '<div><div style="font-size:11px;color:#64748b;margin-bottom:3px;">공사비 합계 (천원절사)</div>' +
+      '<div style="font-size:20px;font-weight:700;color:#059669;">' + fmt(p.finalCost) + ' 원</div></div>' +
+      '<div style="text-align:right;"><div style="font-size:11px;color:#64748b;margin-bottom:3px;">부가세(10%) 포함</div>' +
+      '<div style="font-size:16px;font-weight:700;color:#d97706;">' + fmt(p.totalWithVat) + ' 원</div></div>' +
+    '</div>';
+}
+
+function toggleDetail(id) {
+  const panel = document.getElementById('dp-' + id);
+  const isOpen = panel.style.display === 'block';
+  document.querySelectorAll('.detail-panel').forEach(el => el.style.display = 'none');
+  if (!isOpen) panel.style.display = 'block';
+}
+
+function delProject(id) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  projects = projects.filter(p => p.id !== id);
+  save(); updateBadge(); renderList();
+  showToast('🗑️ 삭제되었습니다');
+}
+
+// ================================================================
+// 요약
+// ================================================================
+function renderSummary() {
+  const cnt  = projects.length;
+  const dist = projects.reduce((s,p)=>s+(p.exposedKm||0)+(p.probeKm||0), 0);
+  const amt  = projects.reduce((s,p)=>s+(p.finalCost||0), 0);
+  const vat  = projects.reduce((s,p)=>s+(p.totalWithVat||0), 0);
+
+  document.getElementById('sCnt').textContent  = cnt;
+  document.getElementById('sDist').textContent = dist.toFixed(3);
+  document.getElementById('sAmt').textContent  = fmt(amt);
+  document.getElementById('sVat').textContent  = fmt(vat);
+
+  const tbody = document.getElementById('summaryBody');
+  if (!cnt) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:2rem;">데이터 없음</td></tr>'; return; }
+
+  tbody.innerHTML = projects.map((p,i) =>
+    '<tr>' +
+    '<td class="ctr">' + (i+1) + '</td>' +
+    '<td>' + p.gubun + '</td>' +
+    '<td>' + p.region + '</td>' +
+    '<td style="font-size:11px">' + p.workCode + '</td>' +
+    '<td class="ctr"><span style="color:' + (p.method==='realtime'?'#15803d':'#854d0e') + ';font-weight:600;">' + (p.method==='realtime'?'실시간':'탐사') + '</span></td>' +
+    '<td class="num">' + ((p.exposedKm||0)+(p.probeKm||0)).toFixed(3) + '</td>' +
+    '<td class="num">' + fmt(p.directLabor) + '</td>' +
+    '<td class="num">' + fmt(p.machineExp) + '</td>' +
+    '<td class="num" style="color:#2563eb;font-weight:700;">' + fmt(p.finalCost) + '</td>' +
+    '<td class="num" style="color:#059669;font-weight:700;">' + fmt(p.totalWithVat) + '</td>' +
+    '</tr>'
+  ).join('') +
+  '<tr class="sum-row">' +
+  '<td colspan="5" class="ctr">합계</td>' +
+  '<td class="num">' + dist.toFixed(3) + '</td>' +
+  '<td class="num">' + fmt(projects.reduce((s,p)=>s+p.directLabor,0)) + '</td>' +
+  '<td class="num">' + fmt(projects.reduce((s,p)=>s+p.machineExp,0)) + '</td>' +
+  '<td class="num" style="color:#2563eb;font-weight:700;">' + fmt(amt) + '</td>' +
+  '<td class="num" style="color:#059669;font-weight:700;">' + fmt(vat) + '</td>' +
+  '</tr>';
+}
+
+// ================================================================
+// 엑셀 다운로드 (ExcelJS)
+// ================================================================
+async function downloadExcel() {
+  if (!projects.length) { showToast('❌ 다운로드할 사업이 없습니다', true); return; }
+  if (projects.length > 16) { showToast('❌ 최대 16건까지 가능합니다', true); return; }
+
+  showToast('⏳ 엑셀 생성 중...');
+
+  try {
+    // Vercel API 호출 (서버가 직접 GitHub에서 템플릿 다운로드)
+    const res = await fetch('https://underground-settlement.vercel.app/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        projects: projects,
+        branchName: (() => {
+          for (const p of projects) {
+            const m = (p.surveyName || '').match(/\(([^)]*지사)\)/);
+            if (m) return m[1];
+          }
+          return '수도권지사';
+        })(),
+        month: uploadedMonth || String(new Date().getMonth()+1)
+      })
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      let msg = '서버 오류 ' + res.status;
+      try { msg = JSON.parse(text).error || msg; } catch(e) { msg = text.substring(0,100); }
+      throw new Error(msg);
+    }
+
+    // 결과 파일 다운로드
+    let data;
+    try { data = JSON.parse(text); } catch(e) { throw new Error('응답 파싱 오류: ' + text.substring(0,100)); }
+    const bytes = Uint8Array.from(atob(data.file), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    // 공공측량명칭에서 지사명 추출
+    let branchName = '수도권지사';
+    for (const p of projects) {
+      const m = (p.surveyName || '').match(/\(([^)]*지사)\)/);
+      if (m) { branchName = m[1]; break; }
+    }
+    // 업로드 엑셀에서 추출한 월 우선, 없으면 현재 월
+    const mm = uploadedMonth || String(now.getMonth()+1).padStart(2,'0');
+    a.href = url;
+    a.download = '정산내역서_' + now.getFullYear() + '년' + mm + '월_' + branchName + '_측량.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ 다운로드 완료!');
+
+  } catch(e) {
+    showToast('❌ 오류: ' + e.message, true);
+    console.error(e);
   }
 }
 
-function decide(id, status) {
-  const r = requests.find(x=>x.id===id);
-  if(r) r.status=status;
-  renderAll();
+
+// ================================================================
+// 유틸리티
+// ================================================================
+function fmt(n) { return Math.round(n||0).toLocaleString('ko-KR'); }
+
+function save() {
+  try { localStorage.setItem('ugs_projects', JSON.stringify(projects)); } catch(e) {}
 }
 
-function submitLeave() {
-  const type = document.getElementById('leave-type').value;
-  const start = document.getElementById('start-date').value;
-  const end = document.getElementById('end-date').value;
-  const reason = document.getElementById('leave-reason').value;
-  const s=new Date(start), e=new Date(end);
-  const days = type.includes('반차')?0.5:Math.round((e-s)/(86400000))+1;
-  requests.unshift({id:Date.now(),empId:1,type,start,end,days,status:'pending',reason});
-  const n = document.getElementById('apply-notify');
-  n.classList.add('show');
-  setTimeout(()=>n.classList.remove('show'),3000);
-  renderAll();
+function updateBadge() {
+  document.getElementById('cntBadge').textContent = '사업 ' + projects.length + '건';
 }
 
-function setRole(role) {
-  currentRole = role;
-  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('admin-nav').style.display = role==='admin'?'block':'none';
-  document.getElementById('employee-nav').style.display = role==='employee'?'block':'none';
-  showPage(role==='admin'?'dashboard':'my-leave');
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => { t.className = 'toast'; }, 3000);
 }
 
-function showPage(page) {
-  currentPage = page;
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+page)?.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  event?.target?.classList.add('active');
-  if(page==='calendar') renderCalendar('cal-body-a','cal-head-a','cal-title','cal-legend-a',null);
-  if(page==='my-calendar') renderCalendar('cal-body-e','cal-head-e','cal-title-e','cal-legend-e',1);
-  renderAll();
-}
-
-function changeMonth(dir) {
-  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+dir);
-  if(currentPage==='calendar') renderCalendar('cal-body-a','cal-head-a','cal-title','cal-legend-a',null);
-  if(currentPage==='my-calendar') renderCalendar('cal-body-e','cal-head-e','cal-title-e','cal-legend-e',1);
-}
-
-function renderAll() {
-  renderPending();
-  renderAllRequests();
-  renderEmpProgress();
-  renderEmpList();
-  renderMyRequests();
-}
-
-renderAll();
+// 초기화
+updateBadge();
 </script>
 </body>
 </html>
