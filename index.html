@@ -670,16 +670,28 @@ function renderList() {
   });
 
   let html = '';
+  const BRANCH_COLORS = [
+    {bg:'#eff6ff',border:'#bfdbfe',text:'#1d4ed8'},
+    {bg:'#f0fdf4',border:'#bbf7d0',text:'#15803d'},
+    {bg:'#fdf4ff',border:'#e9d5ff',text:'#7e22ce'},
+    {bg:'#fff7ed',border:'#fed7aa',text:'#c2410c'},
+    {bg:'#fef2f2',border:'#fecaca',text:'#b91c1c'},
+    {bg:'#f0f9ff',border:'#bae6fd',text:'#0369a1'},
+  ];
+  let branchIdx = 0;
   Object.entries(groups).forEach(function(entry) {
     const branch = entry[0];
     const items = entry[1];
     const bid = 'b' + branch.split('').map(function(c){ return c.charCodeAt(0); }).join('');
+    const col = BRANCH_COLORS[branchIdx % BRANCH_COLORS.length];
+    branchIdx++;
 
     html += '<div style="margin-bottom:1.2rem;">';
-    html += '<div style="display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px 10px 0 0;padding:10px 16px;cursor:pointer;" onclick="toggleBranchCheck(this, \'' + bid + '\')">';
+    html += '<div style="display:flex;align-items:center;gap:10px;background:' + col.bg + ';border:1px solid ' + col.border + ';border-radius:10px 10px 0 0;padding:10px 16px;cursor:pointer;" onclick="toggleBranchCheck(this, \'' + bid + '\')">';
     html += '<input type="checkbox" id="cb' + bid + '" style="width:16px;height:16px;cursor:pointer;" onclick="event.stopPropagation()" onchange="onBranchChk(this, \'' + bid + '\')">';
-    html += '<span style="font-size:13px;font-weight:700;color:#2563eb;">📁 ' + branch + '</span>';
+    html += '<span style="font-size:13px;font-weight:700;color:' + col.text + ';">📁 ' + branch + '</span>';
     html += '<span style="font-size:12px;color:#64748b;margin-left:4px;">(' + items.length + '건)</span>';
+    html += '<span style="margin-left:auto;"><button onclick="event.stopPropagation();delBranch(\'' + bid + '\')" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;">🗑️ 전체삭제</button></span>';
     html += '</div>';
     html += '<div style="overflow-x:auto;border:1px solid #bfdbfe;border-top:none;border-radius:0 0 10px 10px;">';
     html += '<table class="tbl" style="margin:0;">';
@@ -724,6 +736,15 @@ function onItemChk(bid) {
   const checked = document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]:checked');
   const chk = document.getElementById('cb' + bid);
   if (chk) chk.checked = all.length > 0 && all.length === checked.length;
+}
+
+function delBranch(bid) {
+  const ids = Array.from(document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]')).map(function(el){ return Number(el.dataset.id); });
+  if (!ids.length) return;
+  if (!confirm(ids.length + '건을 전체 삭제하시겠습니까?')) return;
+  projects = projects.filter(function(p){ return ids.indexOf(p.id) === -1; });
+  save(); updateBadge(); renderList();
+  showToast('🗑️ ' + ids.length + '건 삭제되었습니다');
 }
 
 function getCheckedIds() {
