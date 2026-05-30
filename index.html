@@ -97,6 +97,8 @@ select option{background:#fff;}
 .tbl td.ctr{text-align:center;}
 .tbl tr:hover td{background:#f8fafc;}
 .tbl tr.sum-row td{background:#eff6ff;font-weight:600;}
+.nav-arrow{width:28px;height:28px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;color:#64748b;font-size:16px;display:inline-flex;align-items:center;justify-content:center;}
+.month-display{padding:5px 18px;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-weight:600;font-size:13px;}
 
 /* PROJECT LIST */
 .proj-list{display:flex;flex-direction:column;gap:.7rem;}
@@ -168,7 +170,7 @@ select option{background:#fff;}
     <button class="tab active" onclick="goTab('upload')">📂 양식 업로드</button>
     <button class="tab" onclick="goTab('input')">📝 직접 입력</button>
     <button class="tab" onclick="goTab('list')">📋 사업 목록</button>
-    <button class="tab" onclick="goTab('summary')">📊 정산 현황</button>
+    <button class="tab" onclick="goTab('summary')">🖨️ 정산내역서 출력</button>
   </div>
 
   <!-- ===== TAB: 양식 업로드 ===== -->
@@ -321,42 +323,21 @@ select option{background:#fff;}
   <div class="tab-content" id="tab-list">
     <div class="card">
       <div class="card-title">📋 입력된 사업 목록</div>
+      <div id="monthNav" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"></div>
       <div id="projList">
         <div class="empty"><div class="empty-icon">📭</div><p>입력된 사업이 없습니다</p></div>
       </div>
     </div>
     <div class="btn-group">
-      <button class="btn btn-success" onclick="downloadExcel()">⬇️ 정산 엑셀 다운로드</button>
-      <button class="btn btn-outline" onclick="goTab('upload')">➕ 사업 추가</button>
+      <button class="btn btn-primary" onclick="sendToSettlement()">📤 선택항목 정산내역서로 보내기</button>
+      <span id="checkedCount" style="font-size:12px;color:#64748b;align-self:center;"></span>
     </div>
   </div>
 
-  <!-- ===== TAB: 정산 현황 ===== -->
+  <!-- ===== TAB: 정산내역서 출력 ===== -->
   <div class="tab-content" id="tab-summary">
-    <div class="summary-grid">
-      <div class="summary-card"><div class="s-label">총 사업 수</div><div class="s-value blue" id="sCnt">0</div><div class="s-sub">건</div></div>
-      <div class="summary-card"><div class="s-label">총 측량거리</div><div class="s-value" id="sDist">0.000</div><div class="s-sub">km</div></div>
-      <div class="summary-card"><div class="s-label">공사비 합계</div><div class="s-value green" id="sAmt">0</div><div class="s-sub">원</div></div>
-      <div class="summary-card"><div class="s-label">부가세 포함 합계</div><div class="s-value green" id="sVat">0</div><div class="s-sub">원</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📊 사업별 원가계산서 요약</div>
-      <div style="overflow-x:auto;">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>순번</th><th>구분</th><th>지역</th><th>공사코드</th>
-              <th>정산구분</th><th class="num">측량거리(km)</th>
-              <th class="num">직접노무비</th><th class="num">기계경비</th>
-              <th class="num">공사비 합계</th><th class="num">부가세포함</th>
-            </tr>
-          </thead>
-          <tbody id="summaryBody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="btn-group">
-      <button class="btn btn-success" onclick="downloadExcel()">⬇️ 정산 엑셀 다운로드</button>
+    <div id="settlementBox">
+      <div class="empty"><div class="empty-icon">📭</div><p>사업 목록에서 항목을 선택하고 <strong>정산내역서로 보내기</strong>를 눌러주세요</p></div>
     </div>
   </div>
 </div>
@@ -659,23 +640,83 @@ function getBranch(p) {
   return m ? m[1] : '기타';
 }
 
+// 현재 표시 월 (YYYY-MM)
+let currentYM = (() => {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+})();
+
+function prevMonth() {
+  const [y,m] = currentYM.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  currentYM = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  renderList();
+}
+
+function nextMonth() {
+  const [y,m] = currentYM.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  currentYM = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  renderList();
+}
+
+function getYMLabel(ym) {
+  const [y,m] = ym.split('-');
+  return y + '년 ' + parseInt(m) + '월';
+}
+
+function getNextYM(ym) {
+  const [y,m] = ym.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function carryOver(id) {
+  const p = projects.find(p => p.id === id);
+  if (!p) return;
+  const nextYM = getNextYM(p.month ? (new Date().getFullYear() + '-' + p.month) : currentYM);
+  const nextM = nextYM.split('-')[1];
+  if (!confirm(getYMLabel(nextYM) + '으로 이월하시겠습니까?')) return;
+  p.month = nextM;
+  p.carriedOver = true;
+  save();
+  renderList();
+  showToast('↪️ ' + getYMLabel(nextYM) + '으로 이월되었습니다');
+}
+
 function renderList() {
   const el = document.getElementById('projList');
-  if (projects.length === 0) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>입력된 사업이 없습니다</p></div>';
+
+  // 월 내비게이션 렌더
+  const navEl = document.getElementById('monthNav');
+  if (navEl) {
+    navEl.innerHTML =
+      '<button class="nav-arrow" onclick="prevMonth()">‹</button>' +
+      '<span class="month-display">' + getYMLabel(currentYM) + '</span>' +
+      '<button class="nav-arrow" onclick="nextMonth()">›</button>';
+  }
+
+  // 현재 월 필터링
+  const curM = currentYM.split('-')[1];
+  const filtered = projects.filter(p => {
+    const pm = String(p.month || '').padStart(2,'0');
+    return pm === curM || pm === String(parseInt(curM));
+  });
+
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>' + getYMLabel(currentYM) + ' 사업이 없습니다</p></div>';
+    document.getElementById('checkedCount').textContent = '';
     return;
   }
 
-  // 지사별 그룹핑
   const groups = {};
-  projects.forEach((p, i) => {
+  filtered.forEach((p, i) => {
     const b = getBranch(p);
     if (!groups[b]) groups[b] = [];
-    groups[b].push({ p, i });
+    groups[b].push({ p, i: projects.indexOf(p) });
   });
 
-  let html = '';
-  const BRANCH_COLORS = [
+  const COLORS = [
     {bg:'#eff6ff',border:'#bfdbfe',text:'#1d4ed8'},
     {bg:'#f0fdf4',border:'#bbf7d0',text:'#15803d'},
     {bg:'#fdf4ff',border:'#e9d5ff',text:'#7e22ce'},
@@ -683,66 +724,151 @@ function renderList() {
     {bg:'#fef2f2',border:'#fecaca',text:'#b91c1c'},
     {bg:'#f0f9ff',border:'#bae6fd',text:'#0369a1'},
   ];
-  let branchIdx = 0;
+
+  let html = '';
+  let colorIdx = 0;
   Object.entries(groups).forEach(function(entry) {
     const branch = entry[0];
     const items = entry[1];
     const bid = 'b' + branch.split('').map(function(c){ return c.charCodeAt(0); }).join('');
-    const col = BRANCH_COLORS[branchIdx % BRANCH_COLORS.length];
-    branchIdx++;
+    const col = COLORS[colorIdx % COLORS.length];
+    colorIdx++;
 
     html += '<div style="margin-bottom:1.2rem;">';
     html += '<div style="display:flex;align-items:center;gap:10px;background:' + col.bg + ';border:1px solid ' + col.border + ';border-radius:10px 10px 0 0;padding:10px 16px;cursor:pointer;" onclick="toggleBranchCheck(this, \'' + bid + '\')">';
     html += '<input type="checkbox" id="cb' + bid + '" style="width:16px;height:16px;cursor:pointer;" onclick="event.stopPropagation()" onchange="onBranchChk(this, \'' + bid + '\')">';
     html += '<span style="font-size:13px;font-weight:700;color:' + col.text + ';">📁 ' + branch + '</span>';
     html += '<span style="font-size:12px;color:#64748b;margin-left:4px;">(' + items.length + '건)</span>';
+    const safetyRate = branch === '수도권지사' ? '1.78' : '1.64';
+    html += '<span style="font-size:12px;color:#dc2626;font-weight:600;margin-left:12px;">안전관리비 적용비율 : ' + safetyRate + '%</span>';
     html += '<span style="margin-left:auto;"><button onclick="event.stopPropagation();delBranch(\'' + bid + '\')" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;">🗑️ 전체삭제</button></span>';
     html += '</div>';
-    html += '<div style="overflow-x:auto;border:1px solid #bfdbfe;border-top:none;border-radius:0 0 10px 10px;">';
+    html += '<div style="overflow-x:auto;border:1px solid ' + col.border + ';border-top:none;border-radius:0 0 10px 10px;">';
     html += '<table class="tbl" style="margin:0;">';
-    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th>삭제</th></tr></thead>';
+    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th>삭제</th><th>이월</th></tr></thead>';
     html += '<tbody>';
+
     items.forEach(function(item) {
       const p = item.p;
       const i = item.i;
       const dist = ((p.exposedKm || 0) + (p.probeKm || 0)).toFixed(3);
-      html += '<tr>';
-      html += '<td class="ctr"><input type="checkbox" class="proj-chk" data-bid="' + bid + '" data-id="' + p.id + '" style="width:15px;height:15px;" onchange="onItemChk(\'' + bid + '\')">';
-      html += '</td>';
+      const isRealtime = p.method === 'realtime';
+      const distColor = isRealtime ? '#dc2626' : '#2563eb';
+      const amtColor = isRealtime ? '#dc2626' : '#2563eb';
+      const nextYM = getNextYM(currentYM);
+      const nextLabel = getYMLabel(nextYM);
+      const rowBg = p.carriedOver ? 'background:#fffbeb;' : '';
+
+      html += '<tr style="' + rowBg + '">';
+      html += '<td class="ctr"><input type="checkbox" class="proj-chk" data-bid="' + bid + '" data-id="' + p.id + '" style="width:15px;height:15px;" onchange="onItemChk(\'' + bid + '\');updateCheckedCount()"></td>';
       html += '<td class="ctr">' + (i + 1) + '</td>';
       html += '<td style="font-size:11px;">' + (p.workCode || '-') + '</td>';
-      html += '<td style="font-size:11px;text-align:center;font-weight:600;color:#2563eb;">' + (p.month ? p.month + '월' : '-') + '</td>';
+      if (p.carriedOver) {
+        html += '<td class="ctr"><span style="font-size:10px;background:#fef9c3;color:#92400e;padding:2px 6px;border-radius:10px;font-weight:600;">↪ 이월됨</span></td>';
+      } else {
+        html += '<td class="ctr" style="color:#2563eb;font-weight:500;">' + (p.month ? String(p.month).padStart(2,'0') + '월' : '-') + '</td>';
+      }
       html += '<td style="font-size:11px;white-space:nowrap;">' + (p.surveyName || '-') + '</td>';
       html += '<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.workName || '') + '">' + (p.workName || '-') + '</td>';
       html += '<td style="font-size:11px;">' + (p.tangoType || '-') + '</td>';
-      html += '<td class="num">' + dist + '</td>';
-      html += '<td class="num" style="color:#059669;font-weight:700;">' + fmt(p.finalCost) + '원</td>';
-      html += '<td class="ctr"><button class="icon-btn del" onclick="delProject(' + p.id + ')">🗑️</button></td>';
+      html += '<td class="num" style="color:' + distColor + ';font-weight:600;">' + dist + '</td>';
+      html += '<td class="num" style="color:' + amtColor + ';font-weight:600;">' + fmt(p.finalCost) + '원</td>';
+      html += '<td class="ctr"><button class="icon-btn del" onclick="delProject(' + p.id + ')" title="삭제" style="border-color:#fca5a5;color:#dc2626;">🗑️</button></td>';
+      html += '<td class="ctr"><button class="icon-btn" onclick="carryOver(' + p.id + ')" title="' + nextLabel + '으로 이월" style="border-color:#93c5fd;color:#2563eb;font-size:14px;">↪</button></td>';
       html += '</tr>';
     });
+
     html += '</tbody></table></div></div>';
+  });
+
+  html += '<div style="margin-top:8px;padding:8px 14px;background:#f8fafc;border-radius:8px;font-size:11px;color:#64748b;display:flex;gap:16px;">';
+  html += '<span><span style="color:#dc2626;font-weight:600;">■</span> 실시간 측량</span>';
+  html += '<span><span style="color:#2563eb;font-weight:600;">■</span> 탐사 측량</span>';
+  html += '<span>🗑️ 삭제 &nbsp; ↪ 다음달 이월</span>';
+  html += '</div>';
+
+  el.innerHTML = html;
+  updateCheckedCount();
+}
+
+function sendToSettlement() {
+  const ids = getCheckedIds();
+  if (!ids.length) { showToast('❌ 선택된 항목이 없습니다', true); return; }
+  const selected = projects.filter(p => ids.indexOf(p.id) !== -1);
+  renderSettlement(selected);
+  goTab('summary');
+}
+
+function renderSettlement(items) {
+  const el = document.getElementById('settlementBox');
+  if (!items || !items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>사업 목록에서 항목을 선택하고 <strong>정산내역서로 보내기</strong>를 눌러주세요</p></div>';
+    return;
+  }
+
+  // 지사별 그룹핑
+  const groups = {};
+  items.forEach(p => {
+    const b = getBranch(p);
+    if (!groups[b]) groups[b] = [];
+    groups[b].push(p);
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(([branch, list]) => {
+    const totalDist = list.reduce((s,p) => s + (p.exposedKm||0) + (p.probeKm||0), 0);
+    const totalAmt = list.reduce((s,p) => s + (p.finalCost||0), 0);
+    const totalVat = list.reduce((s,p) => s + (p.totalWithVat||0), 0);
+    const month = list[0].month ? String(list[0].month).padStart(2,'0') + '월' : '';
+
+    html += '<div class="card" style="margin-bottom:1rem;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">';
+    html += '<div><span style="font-size:14px;font-weight:700;">' + getYMLabel(currentYM) + ' · ' + branch + '</span>';
+    html += '<span style="margin-left:8px;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;">' + list.length + '건</span></div>';
+    html += '<div style="display:flex;gap:8px;">';
+    html += '<button class="btn btn-success" onclick="downloadExcel()">⬇️ 엑셀 다운로드</button>';
+    html += '<button class="btn btn-outline" onclick="window.print()">🖨️ 인쇄</button>';
+    html += '</div></div>';
+    html += '<div style="overflow-x:auto;">';
+    html += '<table class="tbl">';
+    html += '<thead><tr><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th class="num">부가세포함</th></tr></thead>';
+    html += '<tbody>';
+    list.forEach((p, i) => {
+      const dist = ((p.exposedKm||0)+(p.probeKm||0)).toFixed(3);
+      const isRealtime = p.method === 'realtime';
+      const c = isRealtime ? '#dc2626' : '#2563eb';
+      html += '<tr>';
+      html += '<td class="ctr">' + (i+1) + '</td>';
+      html += '<td style="font-size:11px;">' + (p.workCode||'-') + '</td>';
+      html += '<td class="ctr" style="color:#2563eb;font-weight:500;">' + (p.month ? String(p.month).padStart(2,'0')+'월' : '-') + '</td>';
+      html += '<td style="font-size:11px;">' + (p.surveyName||'-') + '</td>';
+      html += '<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.workName||'') + '">' + (p.workName||'-') + '</td>';
+      html += '<td style="font-size:11px;">' + (p.tangoType||'-') + '</td>';
+      html += '<td class="num" style="color:' + c + ';font-weight:600;">' + dist + '</td>';
+      html += '<td class="num" style="color:' + c + ';font-weight:600;">' + fmt(p.finalCost) + '원</td>';
+      html += '<td class="num" style="color:#059669;font-weight:600;">' + fmt(p.totalWithVat) + '원</td>';
+      html += '</tr>';
+    });
+    html += '<tr style="background:#f8fafc;font-weight:600;">';
+    html += '<td colspan="6" class="ctr">합계</td>';
+    html += '<td class="num">' + totalDist.toFixed(3) + '</td>';
+    html += '<td class="num" style="color:#2563eb;">' + fmt(totalAmt) + '원</td>';
+    html += '<td class="num" style="color:#059669;">' + fmt(totalVat) + '원</td>';
+    html += '</tr>';
+    html += '</tbody></table></div>';
+    html += '<div style="text-align:right;font-size:11px;color:#64748b;margin-top:6px;">부가세 포함 합계: <strong>' + fmt(totalVat) + '원</strong></div>';
+    html += '</div>';
   });
 
   el.innerHTML = html;
 }
 
-function toggleBranchCheck(el, bid) {
-  const chk = document.getElementById('cb' + bid);
-  if (!chk) return;
-  chk.checked = !chk.checked;
-  document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]').forEach(function(c) { c.checked = chk.checked; });
+function updateCheckedCount() {
+  const cnt = document.querySelectorAll('.proj-chk:checked').length;
+  const el = document.getElementById('checkedCount');
+  if (el) el.textContent = cnt > 0 ? '체크된 ' + cnt + '건' : '';
 }
 
-function onBranchChk(chk, bid) {
-  document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]').forEach(function(c) { c.checked = chk.checked; });
-}
-
-function onItemChk(bid) {
-  const all = document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]');
-  const checked = document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]:checked');
-  const chk = document.getElementById('cb' + bid);
-  if (chk) chk.checked = all.length > 0 && all.length === checked.length;
-}
 
 function delBranch(bid) {
   const ids = Array.from(document.querySelectorAll('.proj-chk[data-bid="' + bid + '"]')).map(function(el){ return Number(el.dataset.id); });
@@ -932,6 +1058,7 @@ function showToast(msg, isErr) {
 
 // 초기화
 updateBadge();
+renderList();
 </script>
 </body>
 </html>
