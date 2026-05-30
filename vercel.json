@@ -1,12 +1,4 @@
 {
-  "functions": {
-    "api/generate.py": {
-      "runtime": "python3.9"
-    },
-    "api/projects.py": {
-      "runtime": "python3.9"
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
@@ -16,5 +8,9 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Accept" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/api/projects", "destination": "/api/projects.py" },
+    { "source": "/api/generate", "destination": "/api/generate.py" }
   ]
 }
