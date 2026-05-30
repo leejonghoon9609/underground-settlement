@@ -589,6 +589,7 @@ function onFileSelect(file) {
         const cost = calcCost(exposed, probe, method);
         uploadedRows.push({
           id: Date.now() + r,
+          month:      uploadedMonth || '',
           gubun:      gc('C', r) || '',
           region:     gc('D', r) || '',
           surveyName: gc('E', r) || '',
@@ -695,7 +696,7 @@ function renderList() {
     html += '</div>';
     html += '<div style="overflow-x:auto;border:1px solid #bfdbfe;border-top:none;border-radius:0 0 10px 10px;">';
     html += '<table class="tbl" style="margin:0;">';
-    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th>삭제</th></tr></thead>';
+    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th>삭제</th></tr></thead>';
     html += '<tbody>';
     items.forEach(function(item) {
       const p = item.p;
@@ -706,6 +707,7 @@ function renderList() {
       html += '</td>';
       html += '<td class="ctr">' + (i + 1) + '</td>';
       html += '<td style="font-size:11px;">' + (p.workCode || '-') + '</td>';
+      html += '<td style="font-size:11px;text-align:center;font-weight:600;color:#2563eb;">' + (p.month ? p.month + '월' : '-') + '</td>';
       html += '<td style="font-size:11px;white-space:nowrap;">' + (p.surveyName || '-') + '</td>';
       html += '<td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.workName || '') + '">' + (p.workName || '-') + '</td>';
       html += '<td style="font-size:11px;">' + (p.tangoType || '-') + '</td>';
