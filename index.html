@@ -135,6 +135,11 @@ select option{background:#fff;}
 .empty{text-align:center;padding:3rem;color:#94a3b8;}
 .empty-icon{font-size:3rem;margin-bottom:.8rem;opacity:.4;}
 
+/* CODE CELL */
+.code-cell{display:flex;align-items:center;gap:5px;overflow:hidden;}
+.code-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;font-size:12px;}
+.dup-badge-inline{flex-shrink:0;background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap;}
+
 /* TOAST */
 .toast{position:fixed;bottom:2rem;right:2rem;background:#fff;border:1px solid #059669;border-radius:11px;padding:.9rem 1.4rem;font-size:17px;color:#059669;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;}
 .toast.show{transform:translateY(0);opacity:1;}
@@ -865,8 +870,9 @@ function renderList() {
     html += '<span style="margin-left:auto;"><button onclick="event.stopPropagation();delBranch(\'' + bid + '\')" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:6px;padding:3px 10px;font-size:13px;cursor:pointer;font-weight:600;">🗑️ 전체삭제</button></span>';
     html += '</div>';
     html += '<div style="overflow-x:auto;border:1px solid ' + col.border + ';border-top:none;border-radius:0 0 10px 10px;">';
-    html += '<table class="tbl" style="margin:0;">';
-    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num">측량거리(km)</th><th class="num">정산금액</th><th>삭제</th><th>이월</th></tr></thead>';
+    html += '<table class="tbl" style="margin:0;table-layout:fixed;">';
+    html += '<colgroup><col style="width:32px"><col style="width:36px"><col style="width:165px"><col style="width:52px"><col style="width:145px"><col style="width:145px"><col style="width:135px"><col style="width:72px"><col style="width:100px"><col style="width:36px"><col style="width:36px"></colgroup>';
+    html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num" style="font-size:12px;line-height:1.4;">측량거리<br>(km)</th><th class="num" style="font-size:12px;">정산금액</th><th>삭제</th><th>이월</th></tr></thead>';
     html += '<tbody>';
 
     // 현재 그룹 내 + 전체 projects에서 중복 workCode 찾기
@@ -888,8 +894,8 @@ function renderList() {
       html += '<tr style="' + rowBg + '">';
       html += '<td class="ctr"><input type="checkbox" class="proj-chk" data-bid="' + bid + '" data-id="' + p.id + '" style="width:15px;height:15px;" onchange="onItemChk(\'' + bid + '\');updateCheckedCount()"></td>';
       html += '<td class="ctr">' + (i + 1) + '</td>';
-      const dupBadgeList = isDupRow ? '<span style="background:#ef4444;color:#fff;font-size:12px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;">중복</span>' : '';
-      html += '<td style="font-size:13px;">' + (p.workCode || '-') + dupBadgeList + '</td>';
+      const dupBadgeList = isDupRow ? '<span class="dup-badge-inline">중복</span>' : '';
+      html += '<td><div class="code-cell"><span class="code-text">' + (p.workCode || '-') + '</span>' + dupBadgeList + '</div></td>';
       if (p.carriedOver) {
         html += '<td class="ctr"><span style="font-size:12px;background:#fef9c3;color:#92400e;padding:2px 6px;border-radius:10px;font-weight:600;">↪ 이월됨</span></td>';
       } else {
@@ -899,7 +905,7 @@ function renderList() {
       html += '<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.workName || '') + '">' + (p.workName || '-') + '</td>';
       html += '<td style="font-size:13px;">' + (p.tangoType || '-') + '</td>';
       html += '<td class="num" style="color:' + distColor + ';font-weight:600;">' + dist + '</td>';
-      html += '<td class="num" style="color:' + amtColor + ';font-weight:600;">' + fmt(p.finalCost) + '원</td>';
+      html += '<td class="num" style="color:' + amtColor + ';font-weight:600;font-size:12px;">' + fmt(p.finalCost) + '원</td>';
       html += '<td class="ctr"><button class="icon-btn del" onclick="delProject(' + p.id + ')" title="삭제" style="border-color:#fca5a5;color:#dc2626;">🗑️</button></td>';
       html += '<td class="ctr"><button class="icon-btn" onclick="carryOver(' + p.id + ')" title="' + nextLabel + '으로 이월" style="border-color:#93c5fd;color:#2563eb;font-size:16px;">↪</button></td>';
       html += '</tr>';
