@@ -140,6 +140,14 @@ select option{background:#fff;}
 .code-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;font-size:12px;}
 .dup-badge-inline{flex-shrink:0;background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap;}
 
+/* BRANCH COLOR */
+.branch-수도권지사{color:#2563eb;font-weight:700;}
+.branch-경북지사{color:#d97706;font-weight:700;}
+.branch-부산지사{color:#db2777;font-weight:700;}
+.branch-광주지사{color:#059669;font-weight:700;}
+.branch-대전지사{color:#7c3aed;font-weight:700;}
+.branch-default{color:#475569;font-weight:700;}
+
 /* TOAST */
 .toast{position:fixed;bottom:2rem;right:2rem;background:#fff;border:1px solid #059669;border-radius:11px;padding:.9rem 1.4rem;font-size:17px;color:#059669;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;}
 .toast.show{transform:translateY(0);opacity:1;}
@@ -871,7 +879,7 @@ function renderList() {
     html += '</div>';
     html += '<div style="overflow-x:auto;border:1px solid ' + col.border + ';border-top:none;border-radius:0 0 10px 10px;">';
     html += '<table class="tbl" style="margin:0;table-layout:fixed;">';
-    html += '<colgroup><col style="width:32px"><col style="width:36px"><col style="width:165px"><col style="width:52px"><col style="width:145px"><col style="width:145px"><col style="width:135px"><col style="width:72px"><col style="width:100px"><col style="width:36px"><col style="width:36px"></colgroup>';
+    html += '<colgroup><col style="width:32px"><col style="width:36px"><col style="width:120px"><col style="width:52px"><col style="width:160px"><col style="width:150px"><col style="width:140px"><col style="width:72px"><col style="width:100px"><col style="width:36px"><col style="width:36px"></colgroup>';
     html += '<thead><tr><th></th><th>순번</th><th>공사코드</th><th>정산월</th><th>공공측량명칭</th><th>공사명</th><th>사업구분</th><th class="num" style="font-size:12px;line-height:1.4;">측량거리<br>(km)</th><th class="num" style="font-size:12px;">정산금액</th><th>삭제</th><th>이월</th></tr></thead>';
     html += '<tbody>';
 
@@ -901,7 +909,20 @@ function renderList() {
       } else {
         html += '<td class="ctr" style="color:#2563eb;font-weight:500;">' + (p.month ? String(p.month).padStart(2,'0') + '월' : '-') + '</td>';
       }
-      html += '<td style="font-size:13px;white-space:nowrap;">' + (p.surveyName || '-') + '</td>';
+      // 공공측량명칭 - 괄호 안 지사명 색상 처리
+      const BRANCH_COLORS = {
+        '수도권지사': 'branch-수도권지사',
+        '경북지사':   'branch-경북지사',
+        '부산지사':   'branch-부산지사',
+        '광주지사':   'branch-광주지사',
+        '대전지사':   'branch-대전지사',
+      };
+      const surveyRaw = p.surveyName || '-';
+      const surveyHtml = surveyRaw.replace(/\(([^)]+)\)/g, function(match, branch) {
+        const cls = BRANCH_COLORS[branch] || 'branch-default';
+        return '(<span class="' + cls + '">' + branch + '</span>)';
+      });
+      html += '<td style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + surveyHtml + '</td>';
       html += '<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.workName || '') + '">' + (p.workName || '-') + '</td>';
       html += '<td style="font-size:13px;">' + (p.tangoType || '-') + '</td>';
       html += '<td class="num" style="color:' + distColor + ';font-weight:600;">' + dist + '</td>';
