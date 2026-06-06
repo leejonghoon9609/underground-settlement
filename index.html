@@ -890,6 +890,9 @@ function renderList() {
     const allCodes = filtered.map(function(p){ return p.workCode; });
     const dupCodes = new Set(allCodes.filter(function(c, idx){ return c && allCodes.indexOf(c) !== idx; }));
 
+    // 지사별 소계 누적
+    let subDist = 0, subCost = 0;
+
     items.forEach(function(item) {
       const p = item.p;
       const i = item.i;
@@ -901,6 +904,10 @@ function renderList() {
       const nextLabel = getYMLabel(nextYM);
       const isDupRow = p.workCode && dupCodes.has(p.workCode);
       const rowBg = isDupRow ? 'background:#fff0f0;' : (p.carriedOver ? 'background:#fffbeb;' : '');
+
+      // 소계 누적
+      subDist += (p.exposedKm || 0) + (p.probeKm || 0);
+      subCost += (p.finalCost || 0);
 
       html += '<tr style="' + rowBg + '">';
       html += '<td class="ctr"><input type="checkbox" class="proj-chk" data-bid="' + bid + '" data-id="' + p.id + '" style="width:15px;height:15px;" onchange="onItemChk(\'' + bid + '\');updateCheckedCount()"></td>';
@@ -934,6 +941,14 @@ function renderList() {
       html += '<td class="ctr"><button class="icon-btn" onclick="carryOver(' + p.id + ')" title="' + nextLabel + '으로 이월" style="border-color:#93c5fd;color:#2563eb;font-size:16px;">↪</button></td>';
       html += '</tr>';
     });
+
+    // 지사별 소계 행
+    html += '<tr class="sum-row">';
+    html += '<td class="ctr" colspan="7" style="background:#f1f5f9;font-weight:700;border-top:2px solid #cbd5e1;text-align:center;color:#1d4ed8;">▶ ' + branch + ' 소계 (' + items.length + '건)</td>';
+    html += '<td class="num" style="background:#f1f5f9;font-weight:700;border-top:2px solid #cbd5e1;color:#1d4ed8;">' + subDist.toFixed(3) + '</td>';
+    html += '<td class="num" style="background:#f1f5f9;font-weight:700;border-top:2px solid #cbd5e1;color:#1d4ed8;font-size:12px;">' + fmt(subCost) + '원</td>';
+    html += '<td colspan="2" style="background:#f1f5f9;border-top:2px solid #cbd5e1;"></td>';
+    html += '</tr>';
 
     html += '</tbody></table></div></div>';
   });
