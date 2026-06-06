@@ -683,7 +683,10 @@ function onFileSelect(file) {
       }
 
       uploadedRows = [];
-      for (let r = 5; r <= 23; r++) {
+      // 시트 실제 데이터 범위 끝 행 찾기
+      const sheetRange = XLSX.utils.decode_range(ws['!ref']);
+      const lastRow = sheetRange.e.r + 1; // 1-indexed
+      for (let r = 5; r <= lastRow; r++) {
         const workCode = gc('F', r);
         const workName = gc('G', r);
         const exposed  = parseFloat(gc('K', r)) || 0;
