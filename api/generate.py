@@ -123,7 +123,10 @@ class handler(BaseHTTPRequestHandler):
                 if m:
                     branch = m.group(1)
                     break
-            ws_gap.cell(1, 1).value = f"{year}년 기성준공내역서_도급_SKTNS_{branch}_측량({month}월)"
+            # 연도 뒤 2자리 (2026 → 26), 월 앞 0 제거 (06 → 6)
+            yy = str(year)[-2:]
+            mm = str(month).lstrip('0') or str(month)
+            ws_gap.cell(1, 1).value = f"{yy}년 기성준공내역서 {mm}월_도급_SKTNS_{branch}_측량(대원항업)"
 
             # 서식 기준: 원본 4행, 12행
             data_fmt = [get_fmt(ws_gap.cell(4, col)) for col in range(1, 10)]
