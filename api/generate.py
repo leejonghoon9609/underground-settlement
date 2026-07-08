@@ -13,8 +13,8 @@ import re
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template.xlsx')
 
 RATES = {
-    'realtime': {'labor': 6209, 'machine': 9437},
-    'probe':    {'labor': 3104, 'machine': 4719},
+    'realtime': {'labor': 6412, 'machine': 9746},
+    'probe':    {'labor': 3206, 'machine': 4873},
 }
 RATIOS = {
     'indirectLabor': 0.10, 'accident': 0.0356, 'employment': 0.0101,
