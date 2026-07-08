@@ -104,11 +104,16 @@ class handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
 
         elif action == 'carry_over':
-            # 이월 처리
+            # 이월 처리: 대상 월(month)을 실제로 옮기고, 이월 플래그 및 원월 기록
             project_id = body.get('id')
             to_month = body.get('toMonth', '')
+            from_month = body.get('fromMonth', '')
+            patch = {'is_carried_over': True}
+            if to_month:
+                patch['month'] = to_month
+            if from_month:
+                patch['carried_over_from'] = from_month
             result = supabase_request('PATCH', 'projects',
-                                      data={'is_carried_over': True,
-                                            'carried_over_from': to_month},
+                                      data=patch,
                                       params={'id': f'eq.{project_id}'})
-            self.send_json({'ok': True})
+            self.send_json({'ok': True, 'data': result})
