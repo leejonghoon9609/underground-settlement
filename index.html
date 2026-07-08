@@ -21,6 +21,7 @@ header{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 2rem;display:fl
 .badge{padding:3px 10px;border-radius:20px;font-size:15px;border:1px solid #e2e8f0;color:#64748b;}
 .badge.live{border-color:#059669;color:#059669;}
 .badge.live::before{content:'● ';font-size:8px;}
+.badge.build{background:#dc2626;border-color:#dc2626;color:#fff;font-weight:700;letter-spacing:.3px;}
 
 /* TABS */
 .container{max-width:1400px;margin:0 auto;padding:1.5rem 2rem;}
@@ -173,7 +174,8 @@ select option{background:#fff;}
     </div>
   </div>
   <div class="hdr-badges">
-    <span class="badge live">실시간 연동</span>
+    <span class="badge build" id="buildBadge">BUILD 45</span>
+    <span class="badge live" id="syncBadge" title="마지막 동기화 시각">실시간 연동</span>
     <span class="badge" id="cntBadge">사업 0건</span>
   </div>
 </header>
@@ -387,6 +389,9 @@ select option{background:#fff;}
 // ================================================================
 const SUPABASE_API = 'https://underground-settlement.vercel.app/api/projects';
 
+// 배포할 때마다 이 숫자만 1씩 올려주세요 (45부터 시작)
+const BUILD_NO = 45;
+
 // ================================================================
 // 상수
 // ================================================================
@@ -417,42 +422,85 @@ const TANGO_LIST = [
 let projects = [];
 try { projects = JSON.parse(localStorage.getItem('ugs_projects') || '[]'); } catch(e) {}
 
-// Supabase에서 데이터 로드
-async function loadFromSupabase() {
+// 동기화 상태 표시
+let lastSyncSig = '';
+function setSyncStatus(ok) {
+  const b = document.getElementById('syncBadge');
+  if (!b) return;
+  if (ok) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    b.classList.add('live');
+    b.textContent = '실시간 연동';
+    b.title = '마지막 동기화 ' + hh + ':' + mm + ':' + ss;
+  } else {
+    b.classList.remove('live');
+    b.textContent = '연동 끊김';
+    b.title = '서버 연결 실패 - 잠시 후 재시도합니다';
+  }
+}
+
+// 현재 활성 탭 다시 그리기
+function refreshActiveView() {
+  const active = document.querySelector('.tab-content.active');
+  if (!active) return;
+  if (active.id === 'tab-list') renderList();
+  else if (active.id === 'tab-summary') renderSettlement(settlementProjects);
+  else if (active.id === 'tab-dashboard') renderDashboard();
+}
+
+// Supabase에서 데이터 로드 (변경이 있을 때만 화면 갱신)
+async function loadFromSupabase(force) {
   try {
     const year = currentYM ? currentYM.split('-')[0] : new Date().getFullYear().toString();
     const res = await fetch(SUPABASE_API + '?year=' + year);
+    if (!res.ok) { setSyncStatus(false); return; }
     const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) {
-      projects = data.map(p => ({
-        id: p.id,
-        dbId: p.id,
-        year: p.year,
-        month: p.month,
-        gubun: p.gubun || '',
-        region: p.region || '',
-        surveyName: p.survey_name || '',
-        workCode: p.work_code || '',
-        workName: p.work_name || '',
-        tangoType: p.tango_type || '',
-        tangoKm: p.tango_km || 0,
-        exposedKm: p.exposed_km || 0,
-        probeKm: p.probe_km || 0,
-        method: p.method || 'probe',
-        finalCost: p.final_cost || 0,
-        vat: p.vat || 0,
-        totalWithVat: p.total_with_vat || 0,
-        remark: p.remark || '',
-        isCarriedOver: p.is_carried_over || false,
-        carriedOverFrom: p.carried_over_from || '',
-        ...calcCost(p.exposed_km || 0, p.probe_km || 0, p.method || 'probe', p.survey_name || ''),
-      }));
-      save();
-      updateBadge();
-      renderList();
-    }
+    setSyncStatus(true);
+    if (!Array.isArray(data)) { console.error('Supabase 응답 형식 오류:', data); return; }
+
+    // 서버 데이터 서명(변경 감지용) — 정렬 후 핵심 필드만
+    const sig = data
+      .map(p => [p.id, p.month, p.final_cost, p.is_carried_over ? 1 : 0].join(':'))
+      .sort()
+      .join('|');
+
+    // 변경 없고 강제 로드도 아니면: 화면 그대로 유지(선택 체크박스 보존)
+    if (!force && sig === lastSyncSig) return;
+    lastSyncSig = sig;
+
+    projects = data.map(p => ({
+      id: p.id,
+      dbId: p.id,
+      year: p.year,
+      month: p.month,
+      gubun: p.gubun || '',
+      region: p.region || '',
+      surveyName: p.survey_name || '',
+      workCode: p.work_code || '',
+      workName: p.work_name || '',
+      tangoType: p.tango_type || '',
+      tangoKm: p.tango_km || 0,
+      exposedKm: p.exposed_km || 0,
+      probeKm: p.probe_km || 0,
+      method: p.method || 'probe',
+      finalCost: p.final_cost || 0,
+      vat: p.vat || 0,
+      totalWithVat: p.total_with_vat || 0,
+      remark: p.remark || '',
+      carriedOver: p.is_carried_over || false,
+      isCarriedOver: p.is_carried_over || false,
+      carriedOverFrom: p.carried_over_from || '',
+      ...calcCost(p.exposed_km || 0, p.probe_km || 0, p.method || 'probe', p.survey_name || ''),
+    }));
+    save();
+    updateBadge();
+    refreshActiveView();
   } catch(e) {
     console.error('Supabase 로드 실패:', e);
+    setSyncStatus(false);
   }
 }
 
@@ -532,8 +580,8 @@ function goTab(name) {
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'list') renderList();
-  if (name === 'summary') renderSettlement(settlementProjects);
+  if (name === 'list') { renderList(); loadFromSupabase(); }
+  if (name === 'summary') { renderSettlement(settlementProjects); loadFromSupabase(); }
   if (name === 'dashboard') renderDashboard();
 }
 
@@ -591,7 +639,7 @@ function renderCalc(c) {
 // ================================================================
 // 사업 추가
 // ================================================================
-function addProject() {
+async function addProject() {
   const gubun    = document.getElementById('fGubun').value;
   const region   = document.getElementById('fRegion').value.trim();
   const workCode = document.getElementById('fWorkCode').value.trim();
@@ -621,12 +669,13 @@ function addProject() {
     ...cost,
   });
   save();
-  // Supabase에도 저장
+  // Supabase에도 저장 후, 서버 기준으로 다시 동기화(정식 id 확보)
   const [addYear, addMonth] = currentYM.split('-');
-  saveToSupabase([projects[projects.length-1]], addYear, addMonth);
   resetForm();
   showToast('✅ 사업이 추가되었습니다');
   updateBadge();
+  await saveToSupabase([projects[projects.length-1]], addYear, addMonth);
+  await loadFromSupabase(true);
 }
 
 function resetForm() {
@@ -750,16 +799,18 @@ function onFileSelect(file) {
   reader.readAsArrayBuffer(file);
 }
 
-function addAllUploaded() {
+async function addAllUploaded() {
   projects.push(...uploadedRows);
   save(); updateBadge();
   // Supabase에 일괄 저장
   const [upYear, upMonth] = currentYM.split('-');
-  saveToSupabase(uploadedRows, upYear, upMonth);
+  const rowsToSave = uploadedRows;
   uploadedRows = [];
   document.getElementById('previewBox').style.display = 'none';
   document.getElementById('fileInput').value = '';
   showToast('✅ ' + projects.length + '건 추가 완료');
+  await saveToSupabase(rowsToSave, upYear, upMonth);
+  await loadFromSupabase(true);
   setTimeout(() => goTab('list'), 800);
 }
 
@@ -808,17 +859,44 @@ function getNextYM(ym) {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
 
-function carryOver(id) {
+async function carryOverInSupabase(dbId, toMonth, fromMonth) {
+  try {
+    const res = await fetch(SUPABASE_API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'carry_over', id: dbId, toMonth: toMonth, fromMonth: fromMonth })
+    });
+    return res.ok;
+  } catch(e) {
+    console.error('이월 저장 실패:', e);
+    return false;
+  }
+}
+
+async function carryOver(id) {
   const p = projects.find(p => p.id === id);
   if (!p) return;
-  const nextYM = getNextYM(p.month ? (new Date().getFullYear() + '-' + p.month) : currentYM);
+  const fromM = String(p.month || currentYM.split('-')[1]).padStart(2, '0');
+  const nextYM = getNextYM(new Date().getFullYear() + '-' + fromM);
   const nextM = nextYM.split('-')[1];
   if (!confirm(getYMLabel(nextYM) + '으로 이월하시겠습니까?')) return;
+
+  // 낙관적 로컬 반영
   p.month = nextM;
   p.carriedOver = true;
+  p.isCarriedOver = true;
+  p.carriedOverFrom = fromM;
   save();
   renderList();
-  showToast('↪️ ' + getYMLabel(nextYM) + '으로 이월되었습니다');
+
+  // DB 저장 (새로고침해도 유지되도록)
+  const okDb = await carryOverInSupabase(p.dbId || p.id, nextM, fromM);
+  if (okDb) {
+    lastSyncSig = '';  // 다음 동기화 때 서버 기준으로 재정렬
+    showToast('↪️ ' + getYMLabel(nextYM) + '으로 이월되었습니다');
+  } else {
+    showToast('⚠️ 이월은 화면에 반영됐지만 서버 저장에 실패했습니다', true);
+  }
 }
 
 function renderList() {
@@ -1050,6 +1128,7 @@ function delBranch(bid) {
   projects = projects.filter(function(p){ return ids.indexOf(Number(p.id)) === -1; });
   save(); updateBadge(); renderList();
   ids.forEach(function(numId){ deleteFromSupabase(numId); });
+  lastSyncSig = '';
   showToast('🗑️ ' + ids.length + '건 삭제되었습니다');
 }
 
@@ -1125,6 +1204,7 @@ function delProject(id) {
   projects = projects.filter(p => Number(p.id) !== numId);
   save(); updateBadge(); renderList();
   deleteFromSupabase(numId);
+  lastSyncSig = '';
   showToast('🗑️ 삭제되었습니다');
 }
 
@@ -1299,10 +1379,22 @@ function showToast(msg, isErr) {
 }
 
 // 초기화
+(function(){ var b=document.getElementById('buildBadge'); if(b) b.textContent='BUILD '+BUILD_NO; })();
 updateBadge();
 renderList();
-// 페이지 로드시 Supabase에서 최신 데이터 로드
-loadFromSupabase();
+// 페이지 로드시 Supabase에서 최신 데이터 로드 (강제)
+loadFromSupabase(true);
+
+// 자동 동기화: 15초마다 서버와 맞춤 (변경 있을 때만 화면 갱신)
+const SYNC_INTERVAL_MS = 15000;
+setInterval(() => {
+  if (document.visibilityState === 'visible') loadFromSupabase();
+}, SYNC_INTERVAL_MS);
+
+// 다른 창/탭 갔다가 돌아오면 즉시 동기화
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadFromSupabase();
+});
 
 // ================================================================
 // 정산 현황 대시보드
