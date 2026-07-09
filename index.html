@@ -174,7 +174,7 @@ select option{background:#fff;}
     </div>
   </div>
   <div class="hdr-badges">
-    <span class="badge build" id="buildBadge">BUILD 48</span>
+    <span class="badge build" id="buildBadge">BUILD 49</span>
     <span class="badge live" id="syncBadge" title="마지막 동기화 시각">실시간 연동</span>
     <span class="badge" id="cntBadge">사업 0건</span>
   </div>
@@ -390,7 +390,7 @@ select option{background:#fff;}
 const SUPABASE_API = 'https://underground-settlement.vercel.app/api/projects';
 
 // 배포할 때마다 이 숫자만 1씩 올려주세요 (45부터 시작)
-const BUILD_NO = 48;
+const BUILD_NO = 49;
 
 // ================================================================
 // 상수
@@ -1303,8 +1303,10 @@ async function downloadSettlementExcel() {
       if (m) { branchName = m[1]; break; }
     }
     const [dlYear, dlMonth] = currentYM.split('-');
+    const dlYY = dlYear.slice(-2);
+    const dlMM = String(parseInt(dlMonth, 10) || dlMonth);
     a.href = url;
-    a.download = '정산내역서_' + dlYear + '년' + dlMonth + '월_' + branchName + '_측량.xlsx';
+    a.download = dlYY + '년 기성준공내역서 ' + dlMM + '월_도급_SKTNS_' + branchName + '_측량(대원항업).xlsx';
     a.click();
     URL.revokeObjectURL(url);
     showToast('✅ 다운로드 완료!');
@@ -1360,8 +1362,10 @@ async function downloadExcel() {
     }
     // 업로드 엑셀에서 추출한 월 우선, 없으면 현재 월
     const mm = uploadedMonth || String(now.getMonth()+1).padStart(2,'0');
+    const yy = String(now.getFullYear()).slice(-2);
+    const mmClean = String(parseInt(mm, 10) || mm);
     a.href = url;
-    a.download = '정산내역서_' + now.getFullYear() + '년' + mm + '월_' + branchName + '_측량.xlsx';
+    a.download = yy + '년 기성준공내역서 ' + mmClean + '월_도급_SKTNS_' + branchName + '_측량(대원항업).xlsx';
     a.click();
     URL.revokeObjectURL(url);
     showToast('✅ 다운로드 완료!');
