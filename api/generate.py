@@ -33,6 +33,7 @@ TANGO_ORDER = [
     '[E-4. 지장이설] 지중 인프라 확보',
     '[E-4. 지장이설] 순수 지장 이설',
     '[G-3. 프론트홀 선로(4G)] 용량증설(4G)',
+    '[O-1. 취약개선] 중요 선로구간 Risk 해소(지상고 불량 등)',
 ]
 
 def calc_cost(exposed_km, probe_km, method, survey_name=''):
@@ -155,8 +156,12 @@ class handler(BaseHTTPRequestHandler):
                 summary[t]['tango']   += float(p.get('tangoKm', 0))
                 summary[t]['cost']    += int(p.get('finalCost', 0))
 
-            # 데이터 있는 항목만 순서대로
+            # 데이터 있는 항목만 순서대로 (TANGO_ORDER 기준)
             active = [label for label in TANGO_ORDER if label in summary]
+            # 목록에 없는 사업구분도 누락되지 않도록 뒤에 추가 (안전장치)
+            for label in summary:
+                if label and label not in active:
+                    active.append(label)
 
             # 데이터행 쓰기 (4행부터)
             tot = {'survey': 0.0, 'tango': 0.0, 'exposed': 0.0, 'probe': 0.0, 'sub': 0.0, 'cost': 0}
