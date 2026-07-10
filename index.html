@@ -94,7 +94,7 @@ select option{background:#fff;}
 .tbl{width:100%;border-collapse:collapse;font-size:16px;}
 .tbl th{background:#f8fafc;padding:8px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:600;font-size:15px;color:#64748b;}
 .tbl td{padding:7px 10px;border:1px solid #e2e8f0;color:#1e293b;}
-.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .tbl td.ctr{text-align:center;}
 .tbl tr:hover td{background:#f8fafc;}
 .tbl tr.sum-row td{background:#eff6ff;font-weight:600;}
@@ -174,7 +174,7 @@ select option{background:#fff;}
     </div>
   </div>
   <div class="hdr-badges">
-    <span class="badge build" id="buildBadge">BUILD 51</span>
+    <span class="badge build" id="buildBadge">BUILD 52</span>
     <span class="badge live" id="syncBadge" title="마지막 동기화 시각">실시간 연동</span>
     <span class="badge" id="cntBadge">사업 0건</span>
   </div>
@@ -390,7 +390,7 @@ select option{background:#fff;}
 const SUPABASE_API = 'https://underground-settlement.vercel.app/api/projects';
 
 // 배포할 때마다 이 숫자만 1씩 올려주세요 (45부터 시작)
-const BUILD_NO = 51;
+const BUILD_NO = 52;
 
 // ================================================================
 // 상수
