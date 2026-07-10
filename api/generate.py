@@ -289,7 +289,7 @@ class handler(BaseHTTPRequestHandler):
                 ws_cap.page_margins.right  = 0.7
                 ws_cap.page_margins.header = 0.3
                 ws_cap.page_margins.footer = 0.3
-                ws_cap.print_area = 'A1:X25'
+                ws_cap.print_area = 'A1:X29'
 
             output = BytesIO()
             wb.save(output)
