@@ -249,6 +249,24 @@ class handler(BaseHTTPRequestHandler):
                 ws_detail.cell(row, 15).value = cost['finalCost']
                 ws_detail.cell(row, 16).value = p.get('remark', '')
 
+            # 사업 수만큼만 남기고 빈 데이터행 삭제 → 소계가 바로 뒤로 붙음
+            from openpyxl.utils import get_column_letter as _gcl
+            n_detail = min(len(projects), 16)   # 데이터행 5~20 (최대 16개)
+            sub_row = 5 + n_detail              # 소계가 위치할 최종 행
+            if n_detail < 16:
+                # 소계 라벨 병합(B21:D21)은 delete_rows가 안 옮기므로 수동 처리
+                for m in list(ws_detail.merged_cells.ranges):
+                    if m.min_row == 21 and m.min_col == 2 and m.max_col == 4:
+                        ws_detail.unmerge_cells(str(m))
+                ws_detail.delete_rows(5 + n_detail, 16 - n_detail)
+                ws_detail.merge_cells(start_row=sub_row, start_column=2,
+                                      end_row=sub_row, end_column=4)
+            # 소계 SUM 범위를 실제 데이터 범위로 재설정 (delete_rows가 수식은 안 고침)
+            last_row = 4 + n_detail
+            for col in (9, 10, 11, 12, 13, 15):   # I,J,K,L,M,O
+                L = _gcl(col)
+                ws_detail.cell(sub_row, col).value = f'=SUM({L}5:{L}{last_row})'
+
             # ── 원가계산서 시트 ────────────────────────────
             ws_cost = wb['원가계산서']
 
