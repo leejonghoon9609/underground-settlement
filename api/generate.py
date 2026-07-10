@@ -90,6 +90,28 @@ def apply_fmt(cell, fmt):
     cell.fill = fmt['fill']
     cell.number_format = fmt['number_format']
 
+# 원가계산서 사업 블록(3열 × 5~42행)을 마스터(13~15열)에서 대상 열로 복제
+def clone_cost_block(ws, src_start, dst_start, rows=range(5, 43)):
+    from openpyxl.formula.translate import Translator
+    for r in rows:
+        for k in range(3):
+            src = ws.cell(r, src_start + k)
+            dst = ws.cell(r, dst_start + k)
+            dst.font          = copy.copy(src.font)
+            dst.alignment     = copy.copy(src.alignment)
+            dst.border        = copy.copy(src.border)
+            dst.fill          = copy.copy(src.fill)
+            dst.number_format = src.number_format
+            v = src.value
+            if isinstance(v, str) and v.startswith('='):
+                # 수식은 열 이동만큼 자동 이동 (절대참조 $E$41 등은 그대로 유지)
+                dst.value = Translator(v, origin=src.coordinate).translate_formula(dst.coordinate)
+            else:
+                dst.value = v
+    # 제목행(5행) 병합 재생성
+    # (열 너비는 복제하지 않음 - 기존 블록2~16과 동일한 기본 너비 유지, 인쇄 폭 불변)
+    ws.merge_cells(start_row=5, start_column=dst_start, end_row=5, end_column=dst_start + 2)
+
 class handler(BaseHTTPRequestHandler):
 
     def send_cors_headers(self):
@@ -242,6 +264,9 @@ class handler(BaseHTTPRequestHandler):
                     p.get('surveyName', '')
                 )
                 start_col = 13 + i * 3
+                # 첫 블록(13열)은 템플릿에 이미 있고, 그 다음부터는 마스터 블록 복제
+                if i > 0:
+                    clone_cost_block(ws_cost, 13, start_col)
                 ws_cost.cell(5, start_col).value = f"{i+1}. {p.get('workCode', '')}"
                 for row, key in COST_ROW_MAP.items():
                     val = cost.get(key, 0)
