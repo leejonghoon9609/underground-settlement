@@ -274,6 +274,23 @@ class handler(BaseHTTPRequestHandler):
                     ws_cost.cell(row, start_col + 1).value = 0
                     ws_cost.cell(row, start_col + 2).value = val
 
+            # ── 사업별 캡쳐용 탭 (맨 뒤에 순서대로) ──────────
+            # 작업자가 캡쳐 이미지를 붙여넣을 빈 탭. 페이지 설정만 동일하게 맞춤.
+            for i, p in enumerate(projects):
+                sheet_name = f"{i+1}. {p.get('workCode', '')}"
+                sheet_name = sheet_name[:31]  # 엑셀 시트명 31자 제한
+                ws_cap = wb.create_sheet(title=sheet_name)  # 맨 뒤에 추가됨
+                ws_cap.page_setup.paperSize   = 9          # A4
+                ws_cap.page_setup.orientation = 'portrait'  # 세로
+                ws_cap.page_setup.scale       = 75          # 확대/축소 75%
+                ws_cap.page_margins.top    = 0.75
+                ws_cap.page_margins.bottom = 0.75
+                ws_cap.page_margins.left   = 0.7
+                ws_cap.page_margins.right  = 0.7
+                ws_cap.page_margins.header = 0.3
+                ws_cap.page_margins.footer = 0.3
+                ws_cap.print_area = 'A1:X25'
+
             output = BytesIO()
             wb.save(output)
             output.seek(0)
