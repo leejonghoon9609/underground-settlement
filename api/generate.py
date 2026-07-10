@@ -290,6 +290,7 @@ class handler(BaseHTTPRequestHandler):
                 ws_cap.page_margins.header = 0.3
                 ws_cap.page_margins.footer = 0.3
                 ws_cap.print_area = 'A1:X29'
+                ws_cap.sheet_view.view = 'pageBreakPreview'  # 페이지 나누기 미리 보기로 열기
 
             output = BytesIO()
             wb.save(output)
