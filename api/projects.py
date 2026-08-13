@@ -54,7 +54,7 @@ class handler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
         year = qs.get('year', [None])[0]
 
-        params = {'order': 'created_at.desc'}
+        params = {'order': 'created_at.asc,id.asc'}
         if year:
             params['year'] = f'eq.{year}'
 
